@@ -61,3 +61,40 @@ class SchemaCoverageTests(SimpleTestCase):
     def test_password_hash_is_excused_rather_than_forgotten(self):
         self.assertIn("password_hash", INTENTIONALLY_UNMAPPED["admins"])
         self.assertNotIn("password_hash", {f.attname for f in Admin._meta.fields})
+
+
+class RequestTypeTests(SimpleTestCase):
+    """The strings the polymorphic tables use to name each product.
+
+    Verified against the live database on 2026-09-08. Two of the three are
+    abbreviations rather than the table name, and an earlier build guessed them
+    wrong - which produced no error at all, just empty document and history
+    lists on every Cash for Car and Public Sector application.
+
+    These values are pinned here so changing one requires deleting a test,
+    which is a deliberate enough act to prompt re-running
+    scripts/verify_request_types.py against production.
+    """
+
+    def test_request_type_strings_match_the_live_database(self):
+        from loans.models import (
+            REQUEST_TYPE_BY_MODEL,
+            CashbackRequest,
+            CashForCarRequest,
+            PublicSectorRequest,
+        )
+
+        self.assertEqual(
+            REQUEST_TYPE_BY_MODEL,
+            {
+                CashbackRequest: "cashback",
+                CashForCarRequest: "cfc",
+                PublicSectorRequest: "psl",
+            },
+        )
+
+    def test_every_product_has_a_request_type(self):
+        from loans.models import PRODUCTS, REQUEST_TYPE_BY_MODEL
+
+        for model in PRODUCTS.values():
+            self.assertIn(model, REQUEST_TYPE_BY_MODEL)

@@ -158,6 +158,16 @@ key, and if those strings are wrong nothing raises - documents and history just
 come back empty on every application, which looks like "no attachments" rather
 than like a bug.
 
+This is not hypothetical. The first run against production found two of the
+three wrong: the real values are **`cfc`** and **`psl`**, not `cash_for_car`
+and `public_sector`. Had it gone live unchecked, 1,088 documents across two
+products would have been invisible with no error anywhere. The values are now
+pinned by `loans/tests/test_schema.py` so changing one requires deleting a
+test.
+
+The live data also carries a fourth value, `extension`, belonging to
+`tenor_extension` - see below.
+
 ## Exports and PII
 
 The tables hold BVN, NIN, dates of birth, mothers' maiden names, addresses,
@@ -266,8 +276,10 @@ and `payroll_record`. The reasons are recorded in
 
 **`tenor_extension` is the one worth revisiting.** It is effectively a fourth
 request type - it has its own `reference_no`, `status` and review columns - and
-it is not in the portal. It held zero rows when this was built. If tenor
-extensions start being used, they need a product tab of their own.
+it is not in the portal. The row-count estimate said zero, but the live
+`request_document` table already carries one row tagged `extension`, so it is
+in use. If tenor extensions matter for reporting, they need a product tab of
+their own.
 
 ## Security posture
 

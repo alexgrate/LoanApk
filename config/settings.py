@@ -113,11 +113,7 @@ USE_TZ = True
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
-# The manifest storage fingerprints filenames for long-lived caching, but it
-# requires `collectstatic` to have run and raises on any file missing from the
-# manifest. That is right in production and wrong everywhere else - it would
-# make a fresh clone fail to render and every test that touches a template with
-# {% static %} error out. Development uses the plain storage instead.
+
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     "staticfiles": {

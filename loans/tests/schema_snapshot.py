@@ -13,7 +13,6 @@ Refresh it after any upstream schema change:
     WHERE table_schema = 'public' ORDER BY table_name, ordinal_position;
 """
 
-# Tables the portal maps and reports on.
 MAPPED_TABLES = {
     "cashback_request": [
         "id", "reference_no", "title", "first_name", "surname", "middle_name",
@@ -114,8 +113,6 @@ MAPPED_TABLES = {
     ],
 }
 
-# Columns present in the database that the models deliberately do not map,
-# with the reason. Anything else missing is a defect.
 INTENTIONALLY_UNMAPPED = {
     "admins": {
         "password_hash": "a reporting portal must never be able to read password hashes",
@@ -123,9 +120,8 @@ INTENTIONALLY_UNMAPPED = {
     },
 }
 
-# Tables in dash_loans that this portal does not model at all, and why.
 UNMAPPED_TABLES = {
-    "tenor_extension": "a fourth request type, empty at build time - see README",
+    "tenor_extension": "a fourth request type - the live request_document table already carries one 'extension' row, so this is in use; see README",
     "payroll_record": "public-sector payroll reference data, not an application",
     "legacy_approval": "pre-migration approval records, superseded by approval_audit_log",
     "legacy_note": "pre-migration comments, superseded by loan_comment",

@@ -26,6 +26,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import connections
 
 from loans.models import (
+    REQUEST_TYPE_BY_MODEL,
     Admin,
     ApprovalAuditLog,
     CashbackRequest,
@@ -60,8 +61,7 @@ DOC_TYPES = ["ID_CARD", "BANK_STATEMENT", "UTILITY_BILL", "PASSPORT_PHOTO",
 VEHICLES = [("Toyota", "Corolla"), ("Honda", "Accord"), ("Lexus", "RX 350"),
             ("Mercedes-Benz", "C300"), ("Kia", "Sportage")]
 
-# A 1x1 transparent PNG, so the document endpoint has something real to decode
-# and serve inline during development.
+
 TINY_PNG = (
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmM"
     "IQAAAABJRU5ErkJggg=="
@@ -156,9 +156,11 @@ class Command(BaseCommand):
         }
         prefixes = {CashbackRequest: "CB", CashForCarRequest: "CFC",
                     PublicSectorRequest: "PS"}
-        request_types = {CashbackRequest: "cashback",
-                         CashForCarRequest: "cash_for_car",
-                         PublicSectorRequest: "public_sector"}
+        # Taken from the models rather than restated, so sample data always
+        # uses the same request_type strings production does. When these were
+        # duplicated, the seeded database agreed with a wrong assumption and
+        # the verification script had nothing to catch.
+        request_types = REQUEST_TYPE_BY_MODEL
 
         total_docs = total_comments = total_history = 0
         for model, count in counts.items():

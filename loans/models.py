@@ -348,8 +348,8 @@ PRODUCTS = {
 
 REQUEST_TYPE_BY_MODEL = {
     CashbackRequest: "cashback",
-    CashForCarRequest: "cash_for_car",
-    PublicSectorRequest: "public_sector",
+    CashForCarRequest: "cfc",
+    PublicSectorRequest: "psl",
 }
 
 
