@@ -30,6 +30,13 @@ from loans.models import REQUEST_TYPE_BY_MODEL  # noqa: E402
 
 TABLES = ["request_document", "approval_audit_log", "loan_comment"]
 
+# request_type values that belong to request types this portal deliberately
+# does not model. These are reported for visibility but are not failures - a
+# gate that always fails is a gate people stop reading.
+KNOWN_UNMODELLED = {
+    "extension": "tenor_extension, which this portal does not model",
+}
+
 
 def main():
     assumed = set(REQUEST_TYPE_BY_MODEL.values())
@@ -37,6 +44,7 @@ def main():
 
     found = set()
     problems = 0
+    unmodelled = {}
     with connections["loans"].cursor() as cursor:
         for table in TABLES:
             cursor.execute(
@@ -49,21 +57,31 @@ def main():
                 print("      (no rows)")
             for value, count in rows:
                 found.add(value)
-                mark = "ok" if value in assumed else "NOT RECOGNISED"
-                print(f"      {value!r:<24} {count:>6} rows   {mark}")
-                if value not in assumed:
+                if value in assumed:
+                    mark = "ok"
+                elif value in KNOWN_UNMODELLED:
+                    mark = "not modelled"
+                    unmodelled[value] = unmodelled.get(value, 0) + count
+                else:
+                    mark = "NOT RECOGNISED"
                     problems += 1
+                print(f"      {value!r:<24} {count:>6} rows   {mark}")
             print()
 
-    unused = assumed - found
-    for value in sorted(unused):
+    for value in sorted(assumed - found):
         print(f"  {value!r} is assumed by the application but appears in no table")
         problems += 1
+
+    for value, count in sorted(unmodelled.items()):
+        print(
+            f"  note: {value!r} ({count} rows) belongs to {KNOWN_UNMODELLED[value]}. "
+            "Not an error."
+        )
 
     if problems:
         print("\nUpdate REQUEST_TYPE_BY_MODEL in loans/models.py to match.")
     else:
-        print("Every request_type matches. Documents and history will resolve.")
+        print("\nEvery modelled request_type matches. Documents and history will resolve.")
     return 1 if problems else 0
 
 
