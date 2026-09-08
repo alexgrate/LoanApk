@@ -30,9 +30,6 @@ from loans.models import REQUEST_TYPE_BY_MODEL  # noqa: E402
 
 TABLES = ["request_document", "approval_audit_log", "loan_comment"]
 
-# request_type values that belong to request types this portal deliberately
-# does not model. These are reported for visibility but are not failures - a
-# gate that always fails is a gate people stop reading.
 KNOWN_UNMODELLED = {
     "extension": "tenor_extension, which this portal does not model",
 }
