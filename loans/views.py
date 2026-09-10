@@ -47,6 +47,17 @@ from .status import (
     status_label,
 )
 
+from .analytics import (
+    amount_bands,
+    officer_performance,
+    product_volume,
+    top_states,
+    turnaround,
+    volume_by_month,
+)
+
+from .charts import bar_chart, column_chart, money, pie_chart
+
 audit = logging.getLogger("loans.audit")
 
 PAGE_SIZES = [25, 50, 100, 200]
@@ -812,3 +823,57 @@ def healthz(request):
         payload["database"] = "unreachable"
         status = 503
     return JsonResponse(payload, status=status)
+
+# --- analytics -------------------------------------------------------------------
+
+MONTH_RANGES = [6, 12, 24]
+DEFAULT_MONTHS = 12
+
+@login_required
+@handle_db_errors
+def analytics(request):
+    try:
+        months = int(request.GET.get("months",DEFAULT_MONTHS))
+    except (TypeError, ValueError):
+        months = DEFAULT_MONTHS
+    if months not in MONTH_RANGES:
+        months = DEFAULT_MONTHS
+
+    volume = volume_by_month(request.user, months)
+    products = product_volume(request.user, months)
+    bands = amount_bands(request.user)
+    states = top_states(request.user)
+    officers = officer_performance(request.user)
+    times = turnaround(request.user)
+
+    volume_chart = column_chart([{"label": m["label"], "value": m["total"]} for m in volume])
+    value_chart = column_chart([{"label": m["label"], "value": m["value"]} for m in volume])
+    product_chart = pie_chart(
+        [{"label": p["label"], "value": p["count"]} for p in products]
+    )
+    band_chart = bar_chart([{"label": b["label"], "value": b["count"]} for b in bands], label_width=130, value_width=70,)
+    state_chart = bar_chart([{"label": s["label"], "value": s["count"]} for s in states], label_width=160, value_width=70,)
+    officer_chart =  bar_chart([{"label": o["label"], "value": o["value"], "display": money(o["value"]), "note": f"{o['count']} loans" + (f" • {o['variants']} spellings" if o["variants"] > 1 else ""),} for o in officers], label_width=230, value_width=150,)
+
+    return render(
+        request,
+        "loans/analytics.html",
+        {
+            "months": months,
+            "month_ranges": MONTH_RANGES,
+            "volume": volume,
+            "volume_chart": volume_chart,
+            "value_chart": value_chart,
+            "products": products,
+            "product_chart": product_chart,
+            "band_chart": band_chart,
+            "state_chart": state_chart,
+            "officer_chart": officer_chart,
+            "officers": officers,
+            "turnaround": times,
+            "total_applications": sum(m["total"] for m in volume),
+            "total_value": sum(m["value"] for m in volume),
+            "sample": settings.SAMPLE_DB,
+            "product": "analytics",
+        }
+    )

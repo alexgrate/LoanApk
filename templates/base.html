@@ -196,6 +196,17 @@
 
   .muted { color: var(--muted); }
 
+  /* Charts keep their drawing width and scroll on narrow screens. Letting an
+     SVG shrink to fit scales its text down with it - a 780-wide viewBox in a
+     350px column renders 10px labels at about 4px. */
+  .chartwrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .chartwrap > svg { display: block; }
+  @media (max-width: 700px) {
+    .chartwrap > svg { min-width: 620px; }
+  }
+  /* The pie is small enough to scale instead. */
+  .pie { flex: 0 0 auto; width: 250px; max-width: 100%; height: auto; }
+
   /* Label/value tables on the detail page. */
   table.kv th[scope=row] {
     width: 250px; background: #fff; text-transform: none; font-size: 13px;
@@ -264,6 +275,7 @@
   <div class="subnav-inner">
     <a href="{% url 'dashboard' %}" {% if not product %}class="on"{% endif %}>Dashboard</a>
     <a href="{% url 'all-requests' %}" {% if product == 'all' %}class="on"{% endif %}>All</a>
+    <a href="{% url 'analytics' %}" {% if product == 'analytics' %} class="on"{% endif %}>Analytics</a>
     {% for code, label in nav_products %}
       <a href="{% url 'product-list' code %}" {% if product == code %}class="on"{% endif %}>{{ label }}</a>
     {% endfor %}
