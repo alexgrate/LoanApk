@@ -11,6 +11,13 @@
   {% endfor %}
 </div>
 
+<style>
+  /* Small hover animation for SVG bars to make the dashboard more lively */
+  .chartwrap rect { transition: transform .15s ease, opacity .15s ease, filter .15s ease; }
+  .chartwrap rect:hover { transform: translateY(-6px); opacity: 0.92; filter: drop-shadow(0 6px 10px rgba(79,26,96,0.12)); cursor: pointer; }
+  .chartwrap text { pointer-events: none; }
+</style>
+
 <!-- Top: four charts in a row -->
 <div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:18px">
   <div class="card" style="flex:1 1 24%;min-width:220px">
