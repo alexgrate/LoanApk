@@ -8,6 +8,7 @@ urlpatterns = [
     path("healthz/", views.healthz, name="healthz"),
     # Must precede <str:product>/, which would otherwise swallow "analytics".
     path("analytics/", views.analytics, name="analytics"),
+    path("analytics/panel/", views.analytics_panel, name="analytics-panel"),
     path("<str:product>/", views.ProductListView.as_view(), name="product-list"),
     path("<str:product>/export/xlsx/", views.export_xlsx, name="export-xlsx"),
     path("<str:product>/<int:pk>/", views.ProductDetailView.as_view(), name="loan-detail"),
