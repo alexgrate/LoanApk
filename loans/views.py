@@ -851,6 +851,50 @@ def analytics(request):
     product_chart = pie_chart(
         [{"label": p["label"], "value": p["count"]} for p in products]
     )
+    band_chart = bar_chart(
+        [{"label": b["label"], "value": b["count"]} for b in bands],
+        label_width=130, value_width=70,
+    )
+    state_chart = bar_chart(
+        [{"label": s["label"], "value": s["count"]} for s in states],
+        label_width=160, value_width=70,
+    )
+    officer_chart = bar_chart(
+        [
+            {
+                "label": o["label"],
+                "value": o["value"],
+                "display": money(o["value"]),
+                "note": f"{o['count']} loans"
+                        + (f" \u00b7 {o['variants']} spellings" if o["variants"] > 1 else ""),
+            }
+            for o in officers
+        ],
+        label_width=230, value_width=150,
+    )
+
+    return render(
+        request,
+        "loans/analytics.html",
+        {
+            "months": months,
+            "month_ranges": MONTH_RANGES,
+            "volume": volume,
+            "volume_chart": volume_chart,
+            "value_chart": value_chart,
+            "products": products,
+            "product_chart": product_chart,
+            "band_chart": band_chart,
+            "state_chart": state_chart,
+            "officer_chart": officer_chart,
+            "officers": officers,
+            "turnaround": times,
+            "total_applications": sum(m["total"] for m in volume),
+            "total_value": sum(m["value"] for m in volume),
+            "sample": settings.SAMPLE_DB,
+            "product": "analytics",
+        },
+    )
 
 
 @login_required
