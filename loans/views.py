@@ -851,6 +851,72 @@ def analytics(request):
     product_chart = pie_chart(
         [{"label": p["label"], "value": p["count"]} for p in products]
     )
+
+
+@login_required
+@handle_db_errors
+def analytics_panel(request):
+    """Alternate analytics page: top row of four summary charts, bottom row
+    split into three product cards showing approval-status volumes and loan
+    volume per product.
+    """
+    try:
+        months = int(request.GET.get("months", DEFAULT_MONTHS))
+    except (TypeError, ValueError):
+        months = DEFAULT_MONTHS
+    if months not in MONTH_RANGES:
+        months = DEFAULT_MONTHS
+
+    # Reuse existing aggregations
+    volume = volume_by_month(request.user, months)
+    products = product_volume(request.user, months)
+
+    # Top charts
+    product_chart = pie_chart([{"label": p["label"], "value": p["count"]} for p in products])
+    volume_chart = column_chart([{"label": m["label"], "value": m["total"]} for m in volume], width=520, height=200)
+    # Loan volume by product (column chart)
+    loan_volume_chart = column_chart([{"label": p["label"], "value": p["value"]} for p in products], width=520, height=200)
+
+    # Final outcome: status totals across all products
+    status_totals = {code: 0 for code, _label in STATUS_CHOICES}
+    from .models import PRODUCTS as PRODUCT_MODELS
+    for code, model in PRODUCT_MODELS.items():
+        qs = model.objects.visible_to(request.user)
+        for row in qs.values("status").annotate(n=Count("id")):
+            status_totals[row["status"]] = status_totals.get(row["status"], 0) + row["n"]
+    final_outcome_items = [{"label": label, "value": status_totals.get(code, 0)} for code, label in STATUS_CHOICES]
+    final_outcome_chart = pie_chart(final_outcome_items)
+
+    # Bottom: per-product approval status charts and loan volumes
+    per_products = []
+    for p in products:
+        code = p["code"]
+        label = p["label"]
+        model = PRODUCT_MODELS[code]
+        qs = model.objects.visible_to(request.user)
+        counts = {c: 0 for c, _l in STATUS_CHOICES}
+        for row in qs.values("status").annotate(n=Count("id")):
+            counts[row["status"]] = counts.get(row["status"], 0) + row["n"]
+        items = [{"label": status_label(c), "value": counts.get(c, 0)} for c, _l in STATUS_CHOICES]
+        approval_chart = bar_chart(items, width=360, row_height=28, label_width=120, value_width=90)
+        per_products.append({"code": code, "label": label, "approval_chart": approval_chart, "loan_volume": p["value"], "count": p["count"]})
+
+    return render(
+        request,
+        "loans/analytics_panel.html",
+        {
+            "months": months,
+            "month_ranges": MONTH_RANGES,
+            "product_chart": product_chart,
+            "final_outcome_chart": final_outcome_chart,
+            "volume_chart": volume_chart,
+            "loan_volume_chart": loan_volume_chart,
+            "per_products": per_products,
+            "total_applications": sum(m["total"] for m in volume),
+            "total_value": sum(m["value"] for m in volume),
+            "sample": settings.SAMPLE_DB,
+        },
+    )
     band_chart = bar_chart([{"label": b["label"], "value": b["count"]} for b in bands], label_width=130, value_width=70,)
     state_chart = bar_chart([{"label": s["label"], "value": s["count"]} for s in states], label_width=160, value_width=70,)
     officer_chart =  bar_chart([{"label": o["label"], "value": o["value"], "display": money(o["value"]), "note": f"{o['count']} loans" + (f" • {o['variants']} spellings" if o["variants"] > 1 else ""),} for o in officers], label_width=230, value_width=150,)
