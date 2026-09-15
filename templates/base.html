@@ -276,6 +276,7 @@
     <a href="{% url 'dashboard' %}" {% if not product %}class="on"{% endif %}>Dashboard</a>
     <a href="{% url 'all-requests' %}" {% if product == 'all' %}class="on"{% endif %}>All</a>
     <a href="{% url 'analytics' %}" {% if product == 'analytics' %} class="on"{% endif %}>Analytics</a>
+    <a href="{% url 'analytics-panel' %}" {% if product == 'analytics-panel' %} class="on"{% endif %}>Analytics panel</a>
     {% for code, label in nav_products %}
       <a href="{% url 'product-list' code %}" {% if product == code %}class="on"{% endif %}>{{ label }}</a>
     {% endfor %}

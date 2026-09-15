@@ -10,7 +10,6 @@
     <a class="chip" href="?months={{ range }}" style="{% if range == months %}background:var(--brand);color:#fff;border-color:var(--brand){% endif %}">Last {{ range }} months</a>
   {% endfor %}
 </div>
-
 <style>
   /* Small hover animation for SVG bars to make the dashboard more lively */
   .chartwrap rect { transition: transform .15s ease, opacity .15s ease, filter .15s ease; }
