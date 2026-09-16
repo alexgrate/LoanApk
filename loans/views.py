@@ -51,7 +51,6 @@ from .analytics import (
     amount_bands,
     officer_performance,
     product_volume,
-    status_breakdown,
     top_states,
     turnaround,
     volume_by_month,
@@ -825,23 +824,16 @@ def healthz(request):
         status = 503
     return JsonResponse(payload, status=status)
 
-# --- analytics ----------------------------------------------------------------
+# --- analytics -------------------------------------------------------------------
 
 MONTH_RANGES = [6, 12, 24]
 DEFAULT_MONTHS = 12
 
-
 @login_required
 @handle_db_errors
 def analytics(request):
-    """One dashboard: summary across the top, detail underneath.
-
-    Everything on the page honours the same month window, so a figure in a tile
-    and the same figure in a chart can never disagree about which period they
-    describe.
-    """
     try:
-        months = int(request.GET.get("months", DEFAULT_MONTHS))
+        months = int(request.GET.get("months",DEFAULT_MONTHS))
     except (TypeError, ValueError):
         months = DEFAULT_MONTHS
     if months not in MONTH_RANGES:
@@ -849,93 +841,19 @@ def analytics(request):
 
     volume = volume_by_month(request.user, months)
     products = product_volume(request.user, months)
-    outcome = status_breakdown(request.user, months=months)
     bands = amount_bands(request.user)
     states = top_states(request.user)
     officers = officer_performance(request.user)
     times = turnaround(request.user)
 
-    by_code = {row["code"]: row["count"] for row in outcome}
-    totals = {
-        "applications": sum(p["count"] for p in products),
-        "value": sum(p["value"] for p in products),
-        "disbursed": by_code.get("DISBURSED", 0),
-        "rejected": by_code.get("REJECTED", 0),
-        "open": sum(
-            row["count"] for row in outcome if row["code"] not in TERMINAL_STATUSES
-        ),
-    }
-
-    # --- summary row ---------------------------------------------------------
+    volume_chart = column_chart([{"label": m["label"], "value": m["total"]} for m in volume])
+    value_chart = column_chart([{"label": m["label"], "value": m["value"]} for m in volume])
     product_chart = pie_chart(
-        [{"label": p["label"], "value": p["count"]} for p in products], size=190
+        [{"label": p["label"], "value": p["count"]} for p in products]
     )
-    outcome_chart = pie_chart(
-        [
-            {"label": r["label"], "value": r["count"], "colour": r["colour"]}
-            for r in outcome
-            if r["count"]
-        ],
-        size=190,
-    )
-    value_chart = bar_chart(
-        [
-            {
-                "label": p["label"],
-                "value": p["value"],
-                "display": compact_number(p["value"]),
-            }
-            for p in products
-        ],
-        width=330, row_height=30, label_width=120, value_width=80,
-    )
-    trend_chart = column_chart(
-        [{"label": m["label"], "value": m["total"]} for m in volume]
-    )
-
-    # --- per product ---------------------------------------------------------
-    per_products = []
-    for product in products:
-        rows = status_breakdown(request.user, product=product["code"], months=months)
-        per_products.append(
-            {
-                **product,
-                "status_chart": bar_chart(
-                    [
-                        {
-                            "label": r["label"],
-                            "value": r["count"],
-                            "colour": r["colour"],
-                        }
-                        for r in rows
-                    ],
-                    width=360, row_height=26, label_width=150, value_width=52,
-                ),
-            }
-        )
-
-    # --- detail --------------------------------------------------------------
-    band_chart = bar_chart(
-        [{"label": b["label"], "value": b["count"]} for b in bands],
-        width=740, label_width=130, value_width=70,
-    )
-    state_chart = bar_chart(
-        [{"label": s["label"], "value": s["count"]} for s in states],
-        width=740, label_width=160, value_width=70,
-    )
-    officer_chart = bar_chart(
-        [
-            {
-                "label": o["label"],
-                "value": o["value"],
-                "display": money(o["value"]),
-                "note": f"{o['count']} loans"
-                        + (f" \u00b7 {o['variants']} spellings" if o["variants"] > 1 else ""),
-            }
-            for o in officers
-        ],
-        width=740, label_width=230, value_width=150,
-    )
+    band_chart = bar_chart([{"label": b["label"], "value": b["count"]} for b in bands], label_width=130, value_width=70,)
+    state_chart = bar_chart([{"label": s["label"], "value": s["count"]} for s in states], label_width=160, value_width=70,)
+    officer_chart =  bar_chart([{"label": o["label"], "value": o["value"], "display": money(o["value"]), "note": f"{o['count']} loans" + (f" • {o['variants']} spellings" if o["variants"] > 1 else ""),} for o in officers], label_width=230, value_width=150,)
 
     return render(
         request,
@@ -943,21 +861,19 @@ def analytics(request):
         {
             "months": months,
             "month_ranges": MONTH_RANGES,
-            "totals": totals,
-            "total_value_compact": compact_number(totals["value"]),
-            "products": products,
-            "per_products": per_products,
-            "outcome": outcome,
-            "product_chart": product_chart,
-            "outcome_chart": outcome_chart,
+            "volume": volume,
+            "volume_chart": volume_chart,
             "value_chart": value_chart,
-            "trend_chart": trend_chart,
+            "products": products,
+            "product_chart": product_chart,
             "band_chart": band_chart,
             "state_chart": state_chart,
             "officer_chart": officer_chart,
             "officers": officers,
             "turnaround": times,
+            "total_applications": sum(m["total"] for m in volume),
+            "total_value": sum(m["value"] for m in volume),
             "sample": settings.SAMPLE_DB,
             "product": "analytics",
-        },
+        }
     )

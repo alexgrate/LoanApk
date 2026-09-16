@@ -86,15 +86,12 @@ def bar_chart(items, width=780, row_height=30, label_width=210, value_width=120)
             "y": round(y, 2),
             "bar_y": round(y + row_height * 0.18, 2),
             "text_y": round(y + row_height * 0.66, 2),
-            # A zero draws nothing. Giving it a sliver would imply a value
-            # that is not there - "Reviewed 0" should look like zero.
-            "width": round(bar_w, 2) if value else 0,
+            "width": round(max(bar_w, 1.5), 2),
             "height": round(row_height * 0.58, 2),
             "label": item["label"],
             "value": item["value"],
             "display": item.get("display") or _format_axis(value),
             "note": item.get("note", ""),
-            "colour": item.get("colour", SERIES_COLOURS[0]),
             "stripe": index % 2 == 1,
         })
 
@@ -150,7 +147,7 @@ def pie_chart(items, size=250, hole=0.0):
             "label": item["label"],
             "value": item["value"],
             "pct": round(share * 100, 1),
-            "colour": item.get("colour") or SERIES_COLOURS[index % len(SERIES_COLOURS)],
+            "colour": SERIES_COLOURS[index % len(SERIES_COLOURS)],
             "full": share >= 0.9995,
             "d": f"M {cx} {cy} L {x1} {y1} A {radius} {radius} 0 {large} 1 {x2} {y2} Z",
             "label_x": round(cx + label_at * math.cos(mid_rad), 2),
