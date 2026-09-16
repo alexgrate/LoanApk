@@ -199,6 +199,30 @@
   /* Charts keep their drawing width and scroll on narrow screens. Letting an
      SVG shrink to fit scales its text down with it - a 780-wide viewBox in a
      350px column renders 10px labels at about 4px. */
+  /* --- analytics dashboard ---------------------------------------------- */
+  .dash-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+  .dash-card {
+    background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 15px 16px; box-shadow: var(--shadow); min-width: 0;
+    transition: box-shadow .15s ease, border-color .15s ease;
+  }
+  .dash-card:hover { box-shadow: 0 2px 4px rgba(27,27,31,.07), 0 6px 18px rgba(79,26,96,.08);
+                     border-color: var(--brand-line); }
+  .dash-card h3 { margin: 0 0 12px; font-size: 13px; font-weight: 650; letter-spacing: .02em; }
+  .dash-card .sub { color: var(--faint); font-weight: 400; font-size: 12px; }
+  .pie-row { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+  .pie-row > .pie { flex: 0 0 auto; }
+  /* 200px basis: when the card is too narrow to hold the pie and a readable
+     legend side by side, the legend wraps underneath and gets the full width
+     rather than ellipsing every label to "Correc...". */
+  .legend { flex: 1 1 200px; min-width: 0; font-size: 13px; }
+  .legend div { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
+  .legend .dot { width: 10px; height: 10px; border-radius: 3px; flex: 0 0 auto; }
+  .legend .name { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .legend .n { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .legend .pc { color: var(--faint); font-variant-numeric: tabular-nums; width: 46px; text-align: right; }
+  @media (prefers-reduced-motion: reduce) { .dash-card { transition: none; } }
+
   .chartwrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .chartwrap > svg { display: block; }
   @media (max-width: 700px) {

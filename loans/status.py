@@ -42,6 +42,19 @@ STATUS_CHOICES = [(code, label) for code, _field, label in STATUS_RULES] + [
 ]
 STATUS_LABELS = dict(STATUS_CHOICES)
 
+# Chart colours, matching the status pills in base.html so a slice and a badge
+# for the same status are never different colours. Semantic, not a ramp: green
+# is good, red is bad, amber needs attention, blues are stages in flight.
+STATUS_COLOURS = {
+    "DISBURSED": "#17724F",
+    "REJECTED": "#A3211B",
+    "CORRECTION_REQUESTED": "#B07A10",
+    "CONTROL_APPROVED": "#1E4FA3",
+    "CREDIT_APPROVED": "#4074C4",
+    "REVIEWED": "#7BA0DC",
+    "PENDING": "#9A9AA5",
+}
+
 STATUS_FIELDS = [field for _code, field, _label in STATUS_RULES]
 
 TERMINAL_STATUSES = ["REJECTED", "DISBURSED"]

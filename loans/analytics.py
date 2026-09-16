@@ -9,7 +9,7 @@ from django.utils import timezone
 
 from .models import PRODUCTS
 from .officers import group_by_officer
-from .status import TERMINAL_STATUSES
+from .status import STATUS_CHOICES, STATUS_COLOURS, TERMINAL_STATUSES
 
 AMOUNT_BANDS = [
     ("Under 250k", 250_000),
@@ -27,6 +27,13 @@ STAGES = [
     ("Control", "control_approved_at"),
     ("Disbursed", "disbursed_at"),
 ]
+
+def _window_start(months):
+    """First day of the month `months` back - the window every panel shares."""
+    return (timezone.now() - timedelta(days=31 * months)).replace(
+        day=1, hour=0, minute=0, second=0, microsecond=0
+    )
+
 
 def _querysets(user):
     for code, model in PRODUCTS.items():
@@ -72,9 +79,7 @@ def product_volume(user, months=12):
     Counts, value and disbursed count per product, largest first. Uses the same
     window as volume_by_month so the two panels agree.
     """
-    since = (timezone.now() - timedelta(days=31 * months)).replace(
-        day=1, hour=0, minute=0, second=0, microsecond=0
-    )
+    since = _window_start(months)
 
     rows = []
     for _code, model, queryset in _querysets(user):
@@ -93,6 +98,32 @@ def product_volume(user, months=12):
             }
         )
     return sorted(rows, key=lambda row: -row["count"])
+
+
+def status_breakdown(user, product=None, months=None):
+    """Applications by derived status - overall, or for one product.
+
+    Carries the status colour with each row so a slice, a bar and a pill for
+    the same status are never different colours.
+    """
+    totals = {code: 0 for code, _label in STATUS_CHOICES}
+    models = [PRODUCTS[product]] if product else list(PRODUCTS.values())
+    since = _window_start(months) if months else None
+    for model in models:
+        queryset = model.objects.visible_to(user)
+        if since:
+            queryset = queryset.filter(created_at__gte=since)
+        for row in queryset.values("status").annotate(n=Count("id")):
+            totals[row["status"]] = totals.get(row["status"], 0) + row["n"]
+    return [
+        {
+            "code": code,
+            "label": label,
+            "count": totals.get(code, 0),
+            "colour": STATUS_COLOURS.get(code, "#9A9AA5"),
+        }
+        for code, label in STATUS_CHOICES
+    ]
 
 
 def amount_bands(user):
