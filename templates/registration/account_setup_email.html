@@ -1,0 +1,19 @@
+{% extends "registration/_email_base.html" %}
+{% block body %}
+<p style="margin:0 0 14px">Hello{% if user.first_name %} {{ user.first_name }}{% endif %},</p>
+<p style="margin:0 0 14px">
+  An account has been created for you on {{ portal_name }}, the read-only
+  reporting view onto loan applications.
+</p>
+<p style="margin:0 0 14px">
+  Your username is <strong>{{ user.get_username }}</strong>. Choose a password
+  to finish setting it up:
+</p>
+{% endblock %}
+{% block cta %}Set your password{% endblock %}
+{% block footnote %}
+<p style="margin:0;color:#6B6B76;font-size:13.5px">
+  Nobody, including whoever created the account, has a password for it. Until
+  you set one, it cannot be signed in to.
+</p>
+{% endblock %}

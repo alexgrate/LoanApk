@@ -1,0 +1,25 @@
+{% extends "admin/change_form.html" %}
+{% comment %}
+Adds "Send password setup email" beside Save. The view behind it is registered
+in PortalUserAdmin.get_urls().
+{% endcomment %}
+{% block submit_buttons_bottom %}
+  {% if original %}
+  <div class="submit-row" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+    <a href="{% url 'admin:auth_user_send_setup_email' original.pk %}"
+       class="button"
+       style="background:#4F1A60;color:#fff;padding:10px 15px;border-radius:5px;
+              text-decoration:none;font-weight:600">
+      {% if original.last_login %}Send password reset email{% else %}Send password setup email{% endif %}
+    </a>
+    <span style="color:#666;font-size:12.5px">
+      {% if original.email %}
+        Goes to {{ original.email }}. The link expires in three days and works once.
+      {% else %}
+        This account has no email address, so no link can be sent.
+      {% endif %}
+    </span>
+  </div>
+  {% endif %}
+  {{ block.super }}
+{% endblock %}

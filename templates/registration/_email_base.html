@@ -1,0 +1,31 @@
+{% comment %}
+Inline styles only, and a table for the button. Outlook ignores <style> blocks
+and does not support flex or border-radius on links, so anything clever here
+arrives broken for most of the people who will read it.
+{% endcomment %}
+<div style="font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+            font-size:15px;line-height:1.6;color:#1B1B1F;max-width:560px">
+  <div style="background:#4F1A60;color:#ffffff;padding:16px 20px;
+              font-weight:600;font-size:16px">{{ portal_name }}</div>
+  <div style="padding:22px 20px;background:#ffffff">
+    {% block body %}{% endblock %}
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:22px 0">
+      <tr><td style="background:#4F1A60;padding:11px 22px">
+        <a href="{{ protocol }}://{{ domain }}{% url 'password_reset_confirm' uidb64=uid token=token %}"
+           style="color:#ffffff;text-decoration:none;font-weight:600;font-size:15px">{% block cta %}Set your password{% endblock %}</a>
+      </td></tr>
+    </table>
+    <p style="margin:0 0 14px;color:#6B6B76;font-size:13.5px">
+      The link works once and expires in {{ valid_days }} day{{ valid_days|pluralize }}.
+      If it has run out, ask for a new one from the sign-in page.
+    </p>
+    <p style="margin:0 0 14px;color:#6B6B76;font-size:13.5px">
+      If the button does not work, copy this into your browser:<br>
+      <span style="color:#4F1A60;word-break:break-all">{{ protocol }}://{{ domain }}{% url 'password_reset_confirm' uidb64=uid token=token %}</span>
+    </p>
+    {% block footnote %}{% endblock %}
+  </div>
+  <div style="padding:14px 20px;background:#F6F6F9;color:#9A9AA5;font-size:12px">
+    Sent automatically by {{ portal_name }}. Please do not reply to this message.
+  </div>
+</div>

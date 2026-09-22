@@ -44,6 +44,23 @@ for required in required_settings:
     if not os.getenv(required):
         sys.exit(f"{required} is not set in {env_file}. Refusing to start.")
 
+# Without Graph credentials the email backend falls back to the console, which
+# in production means password setup and reset links are written to the service
+# log and never delivered - a failure nobody notices until somebody is locked
+# out. Better to refuse to start and say so.
+if os.getenv("DJANGO_DEBUG", "False").lower() != "true":
+    missing_mail = [
+        name
+        for name in ("GRAPH_TENANT_ID", "GRAPH_CLIENT_ID", "GRAPH_CLIENT_SECRET", "GRAPH_SENDER")
+        if not os.getenv(name)
+    ]
+    if missing_mail:
+        sys.exit(
+            "Email is not configured: " + ", ".join(missing_mail) + " unset in "
+            f"{env_file}.\nPassword setup and reset links would silently never "
+            "be delivered. Refusing to start."
+        )
+
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 
 from waitress import serve  # noqa: E402
