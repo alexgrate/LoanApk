@@ -28,11 +28,11 @@ class Command(BaseCommand):
                 self.style.WARNING(
                     "\nGraph is not configured, so this will be printed below "
                     "rather than sent.\nSet GRAPH_TENANT_ID, GRAPH_CLIENT_ID, "
-                    "GRAPH_CLIENT_SECRET and GRAPH_SENDER in .env to send for real."
+                    "GRAPH_CLIENT_SECRET and MS_GRAPH_SENDER in .env to send for real."
                 )
             )
         else:
-            self.stdout.write(f"Sending as: {settings.GRAPH_SENDER}")
+            self.stdout.write(f"Sending as: {settings.MS_GRAPH_SENDER}")
             from loans.mail import GraphError, get_access_token
 
             try:

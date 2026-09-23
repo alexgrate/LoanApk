@@ -258,3 +258,75 @@ class AdminUserCreationTests(TestCase):
             },
         )
         self.assertEqual(len(mail.outbox), 2)
+
+
+class EmailCaseTests(TestCase):
+    """Dominion@ and dominion@ must be one address, everywhere."""
+
+    databases = {"default"}
+
+    def setUp(self):
+        cache.clear()
+        mail.outbox.clear()
+
+    def test_stored_lowercase_whatever_was_typed(self):
+        user = User.objects.create_user(
+            "casey", email="  Dominion@Dash-MFB.COM  ", password="x"
+        )
+        self.assertEqual(user.email, "dominion@dash-mfb.com")
+
+    def test_normalisation_survives_an_edit(self):
+        user = User.objects.create_user("casey", email="a@example.invalid", password="x")
+        user.email = "Dominion@DASH-MFB.com"
+        user.save()
+        user.refresh_from_db()
+        self.assertEqual(user.email, "dominion@dash-mfb.com")
+
+    def test_reset_finds_the_account_whatever_case_is_typed(self):
+        User.objects.create_user("casey", email="dominion@dash-mfb.com", password="x")
+        for typed in (
+            "dominion@dash-mfb.com",
+            "Dominion@dash-mfb.com",
+            "DOMINION@DASH-MFB.COM",
+        ):
+            mail.outbox.clear()
+            cache.clear()
+            self.client.post(reverse("password_reset"), {"email": typed})
+            self.assertEqual(len(mail.outbox), 1, f"no link sent for {typed!r}")
+
+    def test_exact_lookups_work_now(self):
+        """The reason for normalising, not just matching case-insensitively."""
+        User.objects.create_user("casey", email="Dominion@Dash-MFB.com", password="x")
+        self.assertTrue(User.objects.filter(email="dominion@dash-mfb.com").exists())
+
+
+class AdminEmailCaseTests(TestCase):
+    databases = {"default"}
+
+    def setUp(self):
+        cache.clear()
+        mail.outbox.clear()
+        self.admin = User.objects.create_superuser(
+            "boss", email="boss@example.invalid", password="admin-password-4417"
+        )
+        self.client.force_login(self.admin)
+
+    def test_a_different_case_counts_as_a_duplicate(self):
+        User.objects.create_user("first", email="dominion@dash-mfb.com", password="x")
+        self.client.post(
+            reverse("admin:auth_user_add"),
+            {"username": "second", "email": "Dominion@Dash-MFB.COM"},
+        )
+        self.assertFalse(
+            User.objects.filter(username="second").exists(),
+            "a second account was created on the same address in different case",
+        )
+
+    def test_created_users_are_stored_lowercase(self):
+        self.client.post(
+            reverse("admin:auth_user_add"),
+            {"username": "newcomer", "email": "Dominion@Dash-MFB.COM"},
+        )
+        user = User.objects.get(username="newcomer")
+        self.assertEqual(user.email, "dominion@dash-mfb.com")
+        self.assertIn("dominion@dash-mfb.com", mail.outbox[0].to)

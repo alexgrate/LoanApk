@@ -15,7 +15,7 @@ stayed pure-Python so the Windows server needs no compiler toolchain.
 Required Graph permission: **Mail.Send**, application type, with admin consent.
 
 Note what that grants: `Mail.Send` as an application permission lets this app
-send as ANY mailbox in the tenant, not just GRAPH_SENDER. Scope it down with an
+send as ANY mailbox in the tenant, not just MS_GRAPH_SENDER. Scope it down with an
 application access policy, or the credentials in .env are a tenant-wide
 send-as capability:
 
@@ -75,15 +75,15 @@ def get_access_token(force_refresh=False):
 
     payload = urllib.parse.urlencode(
         {
-            "client_id": settings.GRAPH_CLIENT_ID,
-            "client_secret": settings.GRAPH_CLIENT_SECRET,
+            "client_id": settings.MS_GRAPH_CLIENT_ID,
+            "client_secret": settings.MS_GRAPH_CLIENT_SECRET,
             "scope": SCOPE,
             "grant_type": "client_credentials",
         }
     ).encode()
 
     data = _post(
-        TOKEN_URL.format(tenant=settings.GRAPH_TENANT_ID),
+        TOKEN_URL.format(tenant=settings.MS_GRAPH_TENANT_ID),
         payload,
         {"Content-Type": "application/x-www-form-urlencoded"},
     )
@@ -160,7 +160,7 @@ class GraphEmailBackend(BaseEmailBackend):
         try:
             _post(
                 SEND_URL.format(
-                    sender=urllib.parse.quote(settings.GRAPH_SENDER, safe="@.")
+                    sender=urllib.parse.quote(settings.MS_GRAPH_SENDER, safe="@.")
                 ),
                 json.dumps(_as_graph_message(message)).encode("utf-8"),
                 {

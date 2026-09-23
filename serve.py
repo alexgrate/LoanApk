@@ -51,7 +51,7 @@ for required in required_settings:
 if os.getenv("DJANGO_DEBUG", "False").lower() != "true":
     missing_mail = [
         name
-        for name in ("GRAPH_TENANT_ID", "GRAPH_CLIENT_ID", "GRAPH_CLIENT_SECRET", "GRAPH_SENDER")
+        for name in ("MS_GRAPH_TENANT_ID", "MS_GRAPH_CLIENT_ID", "MS_GRAPH_CLIENT_SECRET", "MS_GRAPH_SENDER")
         if not os.getenv(name)
     ]
     if missing_mail:

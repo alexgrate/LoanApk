@@ -142,22 +142,22 @@ EXPORT_INCLUDE_PII = os.getenv("EXPORT_INCLUDE_PII", "False").lower() == "true"
 # (client credentials) auth. loans/mail.py implements it as an ordinary Django
 # email backend, so PasswordResetForm and send_mail() work unchanged - only the
 # transport differs.
-GRAPH_TENANT_ID = os.getenv("GRAPH_TENANT_ID", "")
-GRAPH_CLIENT_ID = os.getenv("GRAPH_CLIENT_ID", "")
-GRAPH_CLIENT_SECRET = os.getenv("GRAPH_CLIENT_SECRET", "")
+MS_GRAPH_TENANT_ID = os.getenv("MS_GRAPH_TENANT_ID", "")
+MS_GRAPH_CLIENT_ID = os.getenv("MS_GRAPH_CLIENT_ID", "")
+MS_GRAPH_CLIENT_SECRET = os.getenv("MS_GRAPH_CLIENT_SECRET", "")
 # The mailbox messages are sent from. Must be a real mailbox in the tenant.
-GRAPH_SENDER = os.getenv("GRAPH_SENDER", "")
+MS_GRAPH_SENDER = os.getenv("MS_GRAPH_SENDER", "")
 
 # With Graph unconfigured, messages are written to the console instead of sent.
 # That is what makes local development work with no mail account at all - and
 # it is why serve.py refuses to start without these once DEBUG is off, since
 # otherwise reset links would be silently swallowed in production.
-if GRAPH_TENANT_ID and GRAPH_CLIENT_ID and GRAPH_CLIENT_SECRET and GRAPH_SENDER:
+if MS_GRAPH_TENANT_ID and MS_GRAPH_CLIENT_ID and MS_GRAPH_CLIENT_SECRET and MS_GRAPH_SENDER:
     EMAIL_BACKEND = "loans.mail.GraphEmailBackend"
 else:
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
-DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "") or GRAPH_SENDER
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "") or MS_GRAPH_SENDER
 PORTAL_NAME = "DashMFB Loan Reports"
 
 # How long a setup or reset link stays valid. Django uses one setting for both.
