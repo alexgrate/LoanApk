@@ -1,23 +1,3 @@
-"""Check every figure on the analytics page against raw SQL.
-
-The dashboard reaches its numbers through the ORM: managed=False models, a
-CASE-derived status annotation, a Python median, and the officer alias map. Any
-of those could be subtly wrong and still produce a page that looks entirely
-reasonable - which is the failure that survives review.
-
-So this asks the same questions twice. Once through `loans/analytics.py`, and
-once with plain SQL issued on its own cursor, with the models, the annotation
-and the alias map all outside the path being checked. Agreement between the two
-means something.
-
-Runs against whichever database .env points at, so it is equally valid on the
-sample data and on production.
-
-    .venv/bin/python scripts/verify_analytics.py
-
-Exit status is non-zero if anything disagrees.
-"""
-
 import os
 import sys
 from datetime import timedelta
@@ -31,12 +11,12 @@ sys.path.insert(0, str(BASE_DIR))
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 django.setup()
 
-from django.conf import settings  # noqa: E402
-from django.contrib.auth.models import User  # noqa: E402
-from django.db import connections  # noqa: E402
-from django.utils import timezone  # noqa: E402
+from django.conf import settings
+from django.contrib.auth.models import User
+from django.db import connections
+from django.utils import timezone
 
-from loans.analytics import (  # noqa: E402
+from loans.analytics import (
     amount_bands,
     officer_performance,
     product_volume,
@@ -44,12 +24,10 @@ from loans.analytics import (  # noqa: E402
     turnaround,
     volume_by_month,
 )
-from loans.models import PRODUCTS  # noqa: E402
+from loans.models import PRODUCTS
 
 TABLES = {model.PRODUCT_LABEL: model._meta.db_table for model in PRODUCTS.values()}
 
-# Mirrors STATUS_RULES in loans/status.py. Written out longhand on purpose - if
-# someone reorders the precedence there, this stops agreeing and says so.
 DISBURSED_SQL = "disbursed AND NOT rejected"
 
 problems = []
@@ -57,7 +35,6 @@ notes = []
 
 
 def compare(label, dashboard, database, tolerance=Decimal("0.01")):
-    """Report one figure computed both ways."""
     a, b = dashboard, database
     if isinstance(a, (int, float, Decimal)) and isinstance(b, (int, float, Decimal)):
         agree = abs(Decimal(str(a)) - Decimal(str(b))) <= tolerance
@@ -91,7 +68,6 @@ def main():
         day=1, hour=0, minute=0, second=0, microsecond=0
     )
 
-    # --- volume by product ------------------------------------------------
     print("Volume by product (last 12 months)")
     products = {row["label"]: row for row in product_volume(user, months)}
     total_apps = 0
@@ -112,7 +88,6 @@ def main():
         total_apps += count
     print()
 
-    # --- monthly volume ---------------------------------------------------
     print("Applications per month")
     months_data = volume_by_month(user, months)
     compare("sum of monthly counts", sum(m["total"] for m in months_data), total_apps)
@@ -129,7 +104,6 @@ def main():
     )
     print()
 
-    # --- amount bands -----------------------------------------------------
     print("Loan size bands (all time)")
     bands = amount_bands(user)
     banded = sum(b["count"] for b in bands)
@@ -146,13 +120,11 @@ def main():
         )
     print()
 
-    # --- states -----------------------------------------------------------
     print("Top states (all time)")
     states = top_states(user, limit=1000)
     compare("sum of state counts", sum(s["count"] for s in states), everything)
     print()
 
-    # --- officers ---------------------------------------------------------
     print("Officer performance (disbursed, all time)")
     officers = officer_performance(user, limit=10_000)
     sql_count = sum(
@@ -167,9 +139,6 @@ def main():
     compare("disbursed loans", sum(o["count"] for o in officers), sql_count)
     compare("disbursed value", sum(o["value"] for o in officers), sql_value)
 
-    # DISTINCT across all three products, not the sum of three per-table
-    # counts - the same officer works on more than one product, and summing
-    # would report five names as eleven.
     union = " UNION ".join(
         f"SELECT DISTINCT account_officer FROM {t} WHERE {DISBURSED_SQL}"
         for t in TABLES.values()
@@ -184,7 +153,6 @@ def main():
         )
     print()
 
-    # --- turnaround -------------------------------------------------------
     print("Turnaround")
     times = turnaround(user)
     for stage, column in [
@@ -204,7 +172,6 @@ def main():
         compare(f"{stage}: applications reached", shown, reached)
     print()
 
-    # --- verdict ----------------------------------------------------------
     for note in notes:
         print(f"note: {note}")
     if notes:

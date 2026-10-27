@@ -1,13 +1,3 @@
-"""Views for browsing, exporting and inspecting loan applications.
-
-Everything here reads. The router in loans/routers.py raises on any write
-attempt, and the `loan_reader` database role holds GRANT SELECT only.
-
-Row visibility has exactly one definition - `LoanRequestQuerySet.visible_to`.
-Lists, details, exports and document downloads all go through it, so a future
-per-user rule cannot be applied to the screen but forgotten on the download.
-"""
-
 import base64
 import binascii
 import logging
@@ -64,13 +54,8 @@ PAGE_SIZES = [25, 50, 100, 200]
 DEFAULT_PAGE_SIZE = 50
 NON_FILTER_PARAMS = {"page", "sort", "per_page"}
 
-# The filters people reach for every time stay on screen; the rest sit behind a
-# disclosure. Ten controls in one row reads as a form to be filled in rather
-# than a set of options, and nobody uses the last six.
 PRIMARY_FILTERS = ["q", "status", "created_from", "created_to"]
 
-# Columns shown in the list tables. Shared across products so the unified view
-# and the per-product views read the same way.
 LIST_COLUMNS = [
     ("created_at", "Created"),
     ("reference_no", "Reference"),
@@ -124,11 +109,7 @@ DATE_FORMAT = "yyyy-mm-dd hh:mm:ss"
 AMOUNT_FORMAT = "#,##0.00"
 
 
-# --- error handling -----------------------------------------------------------
-
 def handle_db_errors(view):
-    """Render the connectivity page instead of a 500 when the database is down."""
-
     @wraps(view)
     def wrapper(request, *args, **kwargs):
         try:
@@ -149,12 +130,6 @@ def _db_error(request, exc):
 
 
 class DatabaseErrorMixin:
-    """Render a readable page when the loan database is unreachable.
-
-    Without this a dropped tunnel produces a raw 500, which reads like an
-    application bug rather than a connectivity problem.
-    """
-
     def get(self, request, *args, **kwargs):
         try:
             response = super().get(request, *args, **kwargs)
@@ -165,10 +140,7 @@ class DatabaseErrorMixin:
             return _db_error(request, exc)
 
 
-# --- helpers ------------------------------------------------------------------
-
 def compact_number(value):
-    """1284 -> 1,284 | 1284000 -> 1.3M. For stat tiles, not table columns."""
     if value is None:
         return "0"
     number = float(value)
@@ -180,12 +152,10 @@ def compact_number(value):
 
 
 def _money_sum(field="loan_amount"):
-    """SUM that returns 0 rather than None for an empty set."""
     return Coalesce(Sum(field), Value(0), output_field=DecimalField(max_digits=20, decimal_places=4))
 
 
 def _summarise(queryset):
-    """Counts and value for one product's filtered rows."""
     return queryset.aggregate(
         total=Count("id"),
         value=_money_sum(),
@@ -196,21 +166,12 @@ def _summarise(queryset):
 
 
 def _export_columns(model):
-    """Every mapped column, in model order, with actor ids resolved to names.
-
-    Derived from the model rather than hand-listed, so a column added upstream
-    reaches the export as soon as it reaches the model - the payment requests
-    portal had to maintain this list by hand and it drifted.
-    """
     columns = []
     for field in model._meta.fields:
         if field.is_relation:
             columns.append(f"{field.name}__full_name")
         else:
             columns.append(field.name)
-        # `status` is a query annotation, not a column, so it is not in
-        # _meta.fields - but it is the column a status report is actually
-        # about. Place it beside the reference rather than leaving it out.
         if field.name == "reference_no":
             columns.append("status")
     return columns
@@ -225,7 +186,6 @@ def _is_pii(column):
 
 
 def _cell(value, column):
-    """Render one value for export."""
     if not settings.EXPORT_INCLUDE_PII and _is_pii(column) and value not in (None, ""):
         return "***"
     if value is None:
@@ -235,12 +195,9 @@ def _cell(value, column):
     return value
 
 
-# --- dashboard ----------------------------------------------------------------
-
 @login_required
 @handle_db_errors
 def dashboard(request):
-    """Totals across all three products, and per product."""
     products = []
     totals = {"total": 0, "value": 0, "disbursed": 0, "rejected": 0, "open": 0}
     status_totals = {code: 0 for code, _label in STATUS_CHOICES}
@@ -284,13 +241,8 @@ def dashboard(request):
     )
 
 
-# --- shared list behaviour ----------------------------------------------------
-
 class ListContextMixin:
-    """Sort links, filter chips and page-size links, shared by the list views."""
-
     def _query(self, **overrides):
-        """Current query string with `overrides` applied and blanks dropped."""
         params = self.request.GET.copy()
         for key, value in overrides.items():
             if value is None:
@@ -302,7 +254,6 @@ class ListContextMixin:
         return params.urlencode()
 
     def _sort_links(self):
-        """Header links that toggle asc/desc, keeping filters intact."""
         current = self.request.GET.get("sort", "")
         links = {}
         for name, _label in LIST_COLUMNS:
@@ -316,7 +267,6 @@ class ListContextMixin:
         return links
 
     def _active_filters(self, form=None):
-        """One chip per applied filter, each with a link that removes it."""
         chips = []
         for name, value in self.request.GET.items():
             if name in NON_FILTER_PARAMS or not value:
@@ -374,8 +324,6 @@ class ListContextMixin:
 
 
 class ProductListView(LoginRequiredMixin, DatabaseErrorMixin, ListContextMixin, FilterView):
-    """One loan product, with its full filter set and export."""
-
     template_name = "loans/list.html"
     context_object_name = "requests"
 
@@ -417,14 +365,6 @@ class ProductListView(LoginRequiredMixin, DatabaseErrorMixin, ListContextMixin, 
 @login_required
 @handle_db_errors
 def all_requests(request):
-    """Every product in one list, on the fields they share.
-
-    The three tables cannot be UNIONed in the database - their columns differ -
-    so each is filtered separately and the results are merged here. That is
-    only reasonable because the whole dataset is around 700 rows; if these
-    tables grow into the hundreds of thousands, this becomes a database view
-    with a UNION ALL behind it rather than a Python merge.
-    """
     rows = []
     summary = {"total": 0, "value": 0, "disbursed": 0, "rejected": 0, "open": 0}
     form = None
@@ -443,9 +383,6 @@ def all_requests(request):
             "id", "reference_no", "first_name", "applicant_last_name",
             "loan_amount", "status", "created_at", "account_officer", "state",
         ):
-            # Keys deliberately match the model's attribute names, so one
-            # template renders both these dicts and real model instances -
-            # Django resolves `row.full_name` as a dict key or an attribute.
             row["product_code"] = code
             row["product_label"] = model.PRODUCT_LABEL
             row["status_display"] = status_label(row["status"])
@@ -484,8 +421,6 @@ def all_requests(request):
     )
     return render(request, "loans/list.html", context)
 
-
-# --- detail -------------------------------------------------------------------
 
 class ProductDetailView(LoginRequiredMixin, DatabaseErrorMixin, DetailView):
     template_name = "loans/detail.html"
@@ -583,27 +518,9 @@ class ProductDetailView(LoginRequiredMixin, DatabaseErrorMixin, DetailView):
         return context
 
 
-# --- documents ----------------------------------------------------------------
-
 @login_required
 @handle_db_errors
 def document(request, product, pk, doc_id):
-    """Serve one uploaded document.
-
-    Three things matter here, and all three are deliberate:
-
-    1. The document is fetched by its parent application, not by id alone. A
-       document id on its own says nothing about who may see it; resolving the
-       parent through `visible_to` means the row-visibility rule governs
-       documents too, automatically, including any rule added later.
-    2. `mime_type` is whatever the upload set, so it is attacker-influenced.
-       Only a short whitelist is served inline; everything else is forced to
-       download as application/octet-stream. Serving an uploaded HTML file
-       inline would execute it in the viewer's session - stored XSS with a
-       live session cookie next to it.
-    3. Every access is logged. These are ID scans and bank statements; who
-       opened which one is exactly what an investigation would need.
-    """
     if product not in PRODUCTS:
         raise Http404(f"No such loan product: {product}")
     model = PRODUCTS[product]
@@ -619,7 +536,6 @@ def document(request, product, pk, doc_id):
     )
 
     payload = document.data or ""
-    # Stored values are sometimes bare base64 and sometimes a full data: URI.
     if payload.startswith("data:") and "," in payload:
         payload = payload.split(",", 1)[1]
     try:
@@ -652,24 +568,14 @@ def document(request, product, pk, doc_id):
         content, content_type=mime if inline else "application/octet-stream"
     )
     disposition = "inline" if inline else "attachment"
-    # Both forms: a sanitised ASCII fallback for old clients, and RFC 5987
-    # percent-encoding for the real name.
     response["Content-Disposition"] = (
         f'{disposition}; filename="{filename}"; '
         f"filename*=UTF-8''{quote(filename, safe='')}"
     )
-    # Belt and braces alongside the global nosniff header: never let a browser
-    # decide for itself what an uploaded file is.
     response["X-Content-Type-Options"] = "nosniff"
-    # The strictest policy the platform offers, on the one response that
-    # carries bytes somebody else uploaded. `sandbox` costs nothing for a PDF
-    # or an image and removes scripting, plugins and same-origin access
-    # entirely if anything else ever slips through the mime whitelist.
     response["Content-Security-Policy"] = "sandbox; default-src 'none'; img-src 'self' data:"
     return response
 
-
-# --- export -------------------------------------------------------------------
 
 def _filename(product, extension):
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -680,32 +586,11 @@ FILENAME_SAFE = re.compile(r"[^A-Za-z0-9 ._()\[\]-]")
 
 
 def _safe_filename(name):
-    """Make an uploaded filename safe to put in a response header.
-
-    `file_name` is supplied by whoever uploaded the document, so it reaches us
-    as attacker-influenced text. A double quote would close the quoted string
-    in Content-Disposition early and let the rest be read as further header
-    parameters; a newline would attempt header injection outright. Django
-    blocks the newline case, but the quote it would happily send.
-
-    Everything outside a conservative whitelist is replaced, path separators
-    included, so a name can never traverse or masquerade as a directory.
-    """
     name = FILENAME_SAFE.sub("_", (name or "").strip())[:120]
     return name or "document"
 
 
 def _naive_local(value):
-    """Convert an aware datetime to Lagos local time, then drop the tzinfo.
-
-    Two things are going on, and both are necessary:
-
-    * Excel cannot store a timezone-aware datetime at all - openpyxl raises.
-    * With USE_TZ on, the database hands back UTC. Writing that to the sheet
-      naively would put every timestamp an hour behind what the application
-      shows on screen, which nobody would notice until a report disagreed with
-      the portal by exactly one hour.
-    """
     if hasattr(value, "tzinfo") and value.tzinfo is not None:
         return timezone.localtime(value).replace(tzinfo=None)
     return value
@@ -723,7 +608,6 @@ def _column_format(column):
 @login_required
 @handle_db_errors
 def export_xlsx(request, product):
-    """Export one product's current filter selection as a formatted workbook."""
     from openpyxl import Workbook
     from openpyxl.cell import WriteOnlyCell
     from openpyxl.styles import Alignment, Font, PatternFill
@@ -769,8 +653,6 @@ def export_xlsx(request, product):
                 value = float(value)
             value = _naive_local(value)
             fmt = _column_format(name)
-            # A masked value is the string "***" and must not be given a date
-            # or number format, or Excel shows it as a broken cell.
             if fmt and not isinstance(value, str):
                 cell = WriteOnlyCell(sheet, value=value)
                 cell.number_format = DATE_FORMAT if fmt == "date" else AMOUNT_FORMAT
@@ -788,11 +670,6 @@ def export_xlsx(request, product):
 
 
 def _audit_export(request, product, fmt, row_count):
-    """Record who exported what.
-
-    Exports carry BVN, NIN, dates of birth and next-of-kin details when PII is
-    enabled, so downloads must be attributable after the fact.
-    """
     audit.info(
         "EXPORT format=%s product=%s user=%s ip=%s rows=%d pii=%s filters=%s",
         fmt,
@@ -805,15 +682,7 @@ def _audit_export(request, product, fmt, row_count):
     )
 
 
-# --- health -------------------------------------------------------------------
-
 def healthz(request):
-    """Liveness and database reachability, for the service manager and monitoring.
-
-    Deliberately unauthenticated so a monitor can reach it, and deliberately
-    uninformative: it reports whether the loan database answers, never what is
-    in it and never the connection error itself.
-    """
     payload = {"app": "ok", "database": "ok"}
     status = 200
     try:
@@ -824,7 +693,6 @@ def healthz(request):
         status = 503
     return JsonResponse(payload, status=status)
 
-# --- analytics -------------------------------------------------------------------
 
 MONTH_RANGES = [6, 12, 24]
 DEFAULT_MONTHS = 12

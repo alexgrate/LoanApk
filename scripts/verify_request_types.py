@@ -1,18 +1,3 @@
-"""Confirm the `request_type` strings used by the polymorphic tables.
-
-`request_document`, `approval_audit_log` and `loan_comment` all point at an
-application through a (request_type, request_id) pair rather than a foreign
-key, so the exact strings matter. REQUEST_TYPE_BY_MODEL in loans/models.py
-assumes 'cashback', 'cash_for_car' and 'public_sector'.
-
-If those assumed values are wrong, nothing raises - documents and history
-simply come back empty, on every application, and the portal looks like it has
-no attachments rather than like it has a bug. That failure is quiet enough to
-survive a casual review, which is why this check exists.
-
-    .venv/bin/python scripts/verify_request_types.py
-"""
-
 import os
 import sys
 from pathlib import Path
@@ -24,9 +9,9 @@ sys.path.insert(0, str(BASE_DIR))
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 django.setup()
 
-from django.db import connections  # noqa: E402
+from django.db import connections
 
-from loans.models import REQUEST_TYPE_BY_MODEL  # noqa: E402
+from loans.models import REQUEST_TYPE_BY_MODEL
 
 TABLES = ["request_document", "approval_audit_log", "loan_comment"]
 

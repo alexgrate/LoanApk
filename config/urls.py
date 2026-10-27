@@ -7,7 +7,6 @@ from loans import auth_views
 
 
 def robots_txt(request):
-    """Disallow every crawler across the whole site."""
     return HttpResponse("User-agent: *\nDisallow: /\n", content_type="text/plain")
 
 
@@ -16,13 +15,14 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path(
         "login/",
-        django_auth_views.LoginView.as_view(template_name="registration/login.html"),
+        auth_views.PortalLoginView.as_view(),
         name="login",
     ),
     path("logout/", django_auth_views.LogoutView.as_view(), name="logout"),
 
-    # Forgotten password. Four steps, all public by necessity: ask, confirm
-    # sent, choose a new password from the emailed link, done.
+    path("sso/login/", auth_views.sso_login, name="sso_login"),
+    path("sso/callback/", auth_views.sso_callback, name="sso_callback"),
+
     path(
         "password-reset/",
         auth_views.PasswordResetView.as_view(),

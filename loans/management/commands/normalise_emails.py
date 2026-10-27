@@ -1,18 +1,3 @@
-"""Lowercase email addresses stored before normalisation was added.
-
-New and edited accounts are normalised by a signal (loans/signals.py), but that
-only fires on save - rows written earlier keep whatever case was typed. This
-brings them into line.
-
-    python manage.py normalise_emails            # show what would change
-    python manage.py normalise_emails --apply    # change it
-
-Collisions are reported rather than merged: if two accounts differ only by the
-case of their address, lowercasing both would leave the portal unable to say
-which one a reset link belongs to. That needs a person to decide which account
-is real.
-"""
-
 from collections import defaultdict
 
 from django.contrib.auth.models import User
@@ -34,7 +19,6 @@ class Command(BaseCommand):
             if user.email != user.email.strip().lower()
         ]
 
-        # Would any two accounts end up on the same address?
         by_address = defaultdict(list)
         for user in User.objects.exclude(email=""):
             by_address[user.email.strip().lower()].append(user)
@@ -71,7 +55,7 @@ class Command(BaseCommand):
             return
 
         for user in changes:
-            user.save(update_fields=["email"])  # the signal lowercases it
+            user.save(update_fields=["email"])
         self.stdout.write(
             self.style.SUCCESS(f"\nNormalised {len(changes)} address(es).")
         )

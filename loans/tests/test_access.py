@@ -1,10 +1,3 @@
-"""Authentication, row visibility, PII masking and document serving.
-
-The document tests are the important ones. These files are ID scans, payslips
-and bank statements; the endpoint that serves them is the only place in this
-read-only application where a request can reach raw uploaded bytes.
-"""
-
 import base64
 
 from django.contrib.auth.models import User
@@ -140,11 +133,6 @@ class DocumentTests(SignedInTestCase):
         self.assertEqual(response.content, base64.b64decode(TINY_PNG))
 
     def test_html_upload_is_forced_to_download(self):
-        """An uploaded HTML file served inline would be stored XSS.
-
-        mime_type is whatever the upload set, so it cannot be trusted. Anything
-        outside the inline whitelist must download as an opaque blob.
-        """
         self.make_loan(pk=1)
         payload = base64.b64encode(b"<script>alert(document.cookie)</script>").decode()
         self.make_document(request_id=1, doc_id=1, mime_type="text/html", data=payload)
@@ -159,11 +147,9 @@ class DocumentTests(SignedInTestCase):
         self.assertNotIn("image/svg+xml", INLINE_MIME_TYPES)
 
     def test_document_cannot_be_fetched_through_another_application(self):
-        """The parent application governs access, not the document id alone."""
         self.make_loan(pk=1)
         self.make_loan(pk=2)
         self.make_document(request_id=2, doc_id=7)
-        # Document 7 belongs to application 2. Asking for it under 1 must fail.
         response = self.client.get(reverse("loan-document", args=["cashback", 1, 7]))
         self.assertEqual(response.status_code, 404)
 
@@ -204,7 +190,6 @@ class DocumentTests(SignedInTestCase):
 
 class ExportContentTests(SignedInTestCase):
     def test_export_includes_the_derived_status_column(self):
-        """Status is an annotation, not a field - it has to be added by hand."""
         from loans.views import _export_columns
 
         columns = _export_columns(CashbackRequest)
@@ -219,7 +204,6 @@ class ExportContentTests(SignedInTestCase):
         self.assertNotIn("reviewed_by", columns)
 
     def test_export_timestamps_are_local_and_naive(self):
-        """Excel rejects aware datetimes, and UTC would be an hour out."""
         from datetime import datetime, timezone as dt_timezone
 
         from loans.views import _naive_local
@@ -227,14 +211,11 @@ class ExportContentTests(SignedInTestCase):
         aware = datetime(2026, 3, 1, 23, 30, tzinfo=dt_timezone.utc)
         local = _naive_local(aware)
         self.assertIsNone(local.tzinfo)
-        # Africa/Lagos is UTC+1, so 23:30 UTC is 00:30 the following day.
         self.assertEqual(local.hour, 0)
         self.assertEqual(local.day, 2)
 
 
 class FilenameSanitisationTests(SignedInTestCase):
-    """`file_name` comes from the uploader, so it must never reach a header raw."""
-
     def test_quotes_cannot_break_out_of_the_header(self):
         self.make_loan(pk=1)
         self.make_document(
@@ -244,14 +225,10 @@ class FilenameSanitisationTests(SignedInTestCase):
         response = self.client.get(reverse("loan-document", args=["cashback", 1, 1]))
         header = response["Content-Disposition"]
 
-        # One quoted filename parameter, and the quoted value itself contains
-        # none of the characters that would end it early or add parameters.
         self.assertEqual(header.count('filename="'), 1)
         quoted = header.split('filename="', 1)[1].split('"', 1)[0]
         for char in ('"', ";", "=", "\\", "/"):
             self.assertNotIn(char, quoted, f"{char!r} survived into the header")
-        # The injected parameters are inert text inside the filename, not
-        # parameters of their own.
         self.assertNotIn("x=y", header)
         self.assertNotIn("download=", header)
 
@@ -271,7 +248,6 @@ class FilenameSanitisationTests(SignedInTestCase):
 
 class SecurityHeaderTests(SignedInTestCase):
     def test_scripts_are_forbidden_outright(self):
-        """The app ships no JavaScript, so script-src can be 'none'."""
         self.make_loan(pk=1)
         response = self.client.get(reverse("product-list", args=["cashback"]))
         csp = response["Content-Security-Policy"]

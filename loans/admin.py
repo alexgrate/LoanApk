@@ -1,22 +1,3 @@
-"""Portal user administration.
-
-Two changes to Django's stock user admin:
-
-**Creating a user no longer asks for a password.** The administrator enters a
-name and an email address; the account is given a random 64-character password
-nobody ever sees, and the new user receives a link to set their own. Whoever
-creates an account therefore never knows a password for it, which removes a
-small but real class of problem - shared temporary passwords that get written
-down, reused, or never changed.
-
-**A button to send that link again**, on the user's page and as a bulk action,
-for the ordinary cases: the mail was missed, the link expired, someone is
-locked out.
-
-Both use `loans/emails.py`, which uses Django's own `PasswordResetForm`. There
-is no second token mechanism here.
-"""
-
 from django import forms
 from django.contrib import admin, messages
 from django.contrib.auth.admin import UserAdmin
@@ -29,8 +10,6 @@ from .emails import send_setup_link, set_unguessable_password
 
 
 class UserCreateForm(forms.ModelForm):
-    """Create a user by name and email. No password is set by hand."""
-
     class Meta:
         model = User
         fields = ("username", "email", "first_name", "last_name")
@@ -45,9 +24,6 @@ class UserCreateForm(forms.ModelForm):
 
     def clean_email(self):
         email = (self.cleaned_data.get("email") or "").strip()
-        # Django allows duplicate emails on User; the reset flow does not cope
-        # with them sensibly, so refuse here rather than send one person a link
-        # that signs them in as somebody else.
         if User.objects.filter(email__iexact=email).exists():
             raise forms.ValidationError("A user with that email address already exists.")
         return email
@@ -60,8 +36,6 @@ class UserCreateForm(forms.ModelForm):
         return user
 
 
-# django.contrib.auth registers its own UserAdmin at import time; ours replaces
-# it rather than sitting alongside it.
 admin.site.unregister(User)
 
 
@@ -91,17 +65,10 @@ class PortalUserAdmin(UserAdmin):
 
     @admin.display(description="Signed in yet?", boolean=False)
     def password_state(self, user):
-        """Whether this account has ever been used.
-
-        A user who has never signed in has almost certainly not followed their
-        setup link, which is the thing an administrator actually wants to know
-        when someone says "I never got the email".
-        """
         if user.last_login:
             return "Yes"
         return format_html('<span style="color:#8A5A00">Never signed in</span>')
 
-    # --- sending the link ----------------------------------------------------
 
     @admin.action(description="Send password setup email")
     def send_setup_email(self, request, queryset):
@@ -137,7 +104,6 @@ class PortalUserAdmin(UserAdmin):
         ] + super().get_urls()
 
     def send_setup_email_view(self, request, user_id):
-        """The button on a single user's page."""
         user = User.objects.filter(pk=user_id).first()
         if user is None:
             self.message_user(request, "No such user.", messages.ERROR)
@@ -158,10 +124,8 @@ class PortalUserAdmin(UserAdmin):
             reverse("admin:auth_user_change", args=[user.pk])
         )
 
-    # --- creation ------------------------------------------------------------
 
     def response_add(self, request, obj, post_url_continue=None):
-        """Send the setup link as soon as the account exists."""
         if send_setup_link(obj, request, new_account=True):
             self.message_user(
                 request,

@@ -67,11 +67,6 @@ def volume_by_month(user, months=12):
     ]
 
 def product_volume(user, months=12):
-    """How the three products compare over the period.
-
-    Counts, value and disbursed count per product, largest first. Uses the same
-    window as volume_by_month so the two panels agree.
-    """
     since = (timezone.now() - timedelta(days=31 * months)).replace(
         day=1, hour=0, minute=0, second=0, microsecond=0
     )

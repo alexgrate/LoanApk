@@ -1,16 +1,3 @@
-"""Filters for the loan request lists.
-
-One filter set serves all three products. The only per-product difference is
-the column holding the family name - `surname` on cashback, `last_name` on the
-other two - so the search method reads `LAST_NAME_FIELD` from the model rather
-than hard-coding it.
-
-Status is filtered on the annotated `status` value (see loans/status.py), so a
-status filter is a WHERE on the same CASE the list and the tiles display. The
-alternative - filtering on the underlying booleans - would drift the moment the
-precedence rules changed.
-"""
-
 import django_filters
 from django import forms
 from django.db.models import Q
@@ -20,14 +7,6 @@ from .status import STATUS_CHOICES
 
 
 def _distinct_choices(model, column):
-    """Distinct values for `column`, as form choices.
-
-    Read from the table rather than hard-coded, so a new state or account
-    officer appears without a code change. Returns an empty list if the
-    database is unreachable, so the page can still render its connectivity
-    error instead of raising while the form is built.
-    """
-
     def choices():
         try:
             values = (
@@ -85,8 +64,6 @@ class LoanRequestFilter(django_filters.FilterSet):
         widget=forms.Select(choices=[("", "All records"), ("false", "Current"), ("true", "Legacy")]),
     )
 
-    # Column sorting. Rendered as clickable table headers rather than a select,
-    # so it is excluded from the filter grid in the template.
     sort = django_filters.OrderingFilter(
         fields=(
             "created_at",
@@ -116,8 +93,6 @@ class LoanRequestFilter(django_filters.FilterSet):
             | Q(account_officer__icontains=value)
             | Q(loan_purpose__icontains=value)
         )
-        # BVN and NIN are exact-match only. They are regulated identifiers and
-        # a partial match would let someone probe for them a digit at a time.
         if value.isdigit():
             terms = terms | Q(bvn=value) | Q(nin=value)
 
@@ -128,7 +103,6 @@ class LoanRequestFilter(django_filters.FilterSet):
 
 
 def filter_for(model):
-    """Build the filter set for one loan product."""
     return type(
         f"{model.__name__}Filter",
         (LoanRequestFilter,),

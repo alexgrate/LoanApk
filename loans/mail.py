@@ -1,30 +1,3 @@
-"""Send mail through the Microsoft Graph API.
-
-Implemented as an ordinary Django email backend, so `PasswordResetForm`,
-`send_mail()` and everything else in Django work unchanged - only the transport
-differs. Swapping back to SMTP later is a one-line settings change.
-
-App-only authentication (client credentials): the application holds its own
-identity in Entra ID and sends as a fixed mailbox. No user is signed in, so
-nothing here depends on whose session is active.
-
-Uses `urllib` from the standard library rather than `requests` or `msal`. Two
-POST requests do not justify a dependency, and this project has deliberately
-stayed pure-Python so the Windows server needs no compiler toolchain.
-
-Required Graph permission: **Mail.Send**, application type, with admin consent.
-
-Note what that grants: `Mail.Send` as an application permission lets this app
-send as ANY mailbox in the tenant, not just MS_GRAPH_SENDER. Scope it down with an
-application access policy, or the credentials in .env are a tenant-wide
-send-as capability:
-
-    New-ApplicationAccessPolicy -AppId <client id> `
-      -PolicyScopeGroupId <mail-enabled security group> `
-      -AccessRight RestrictAccess `
-      -Description "Loan Reports portal may send only as no-reply"
-"""
-
 import json
 import logging
 import urllib.error
@@ -45,11 +18,10 @@ TOKEN_CACHE_KEY = "graph-access-token"
 
 
 class GraphError(Exception):
-    """Graph refused a token request or a send."""
+    pass
 
 
 def _post(url, data, headers, timeout=20):
-    """POST and return the decoded response body, or raise GraphError."""
     request = urllib.request.Request(url, data=data, headers=headers, method="POST")
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
@@ -63,11 +35,6 @@ def _post(url, data, headers, timeout=20):
 
 
 def get_access_token(force_refresh=False):
-    """An app-only access token, cached until shortly before it expires.
-
-    Without the cache every message would cost a round trip to Entra ID before
-    the round trip to Graph, and token endpoints are rate limited.
-    """
     if not force_refresh:
         token = cache.get(TOKEN_CACHE_KEY)
         if token:
@@ -92,14 +59,12 @@ def get_access_token(force_refresh=False):
     if not token:
         raise GraphError("token response contained no access_token")
 
-    # Expire our copy a minute early so a token never goes stale mid-send.
     ttl = max(int(data.get("expires_in", 3600)) - 60, 60)
     cache.set(TOKEN_CACHE_KEY, token, ttl)
     return token
 
 
 def _as_graph_message(message):
-    """Turn a Django EmailMessage into the JSON Graph expects."""
     html = None
     for content, mimetype in getattr(message, "alternatives", []) or []:
         if mimetype == "text/html":
@@ -123,16 +88,11 @@ def _as_graph_message(message):
             "ccRecipients": cc,
             "bccRecipients": bcc,
         },
-        # These are transactional notices, not correspondence anyone needs to
-        # read back. Keeping them out of the shared mailbox's Sent Items avoids
-        # accumulating thousands of them.
         "saveToSentItems": False,
     }
 
 
 class GraphEmailBackend(BaseEmailBackend):
-    """Django email backend that posts to Graph's sendMail endpoint."""
-
     def send_messages(self, email_messages):
         if not email_messages:
             return 0
@@ -169,8 +129,6 @@ class GraphEmailBackend(BaseEmailBackend):
                 },
             )
         except GraphError as exc:
-            # A cached token can be revoked before it expires. One retry with a
-            # fresh token distinguishes that from a real failure.
             if not retried and "401" in str(exc):
                 cache.delete(TOKEN_CACHE_KEY)
                 return self._send(message, retried=True)

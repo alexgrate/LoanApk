@@ -107,16 +107,6 @@ def bar_chart(items, width=780, row_height=30, label_width=210, value_width=120)
     }
 
 def pie_chart(items, size=250, hole=0.0):
-    """Pie slices as SVG path data.
-
-    `items` is [{"label": ..., "value": <number>}, ...]. Returns one entry per
-    slice carrying a ready-made `d` attribute, its colour and its share.
-
-    Angles start at twelve o'clock and run clockwise. A single slice covering
-    the whole circle is flagged rather than pathed - an arc whose start and end
-    points are identical draws nothing at all, which is the classic way a pie
-    chart renders blank when one category holds everything.
-    """
     values = [float(item["value"] or 0) for item in items]
     total = sum(values)
     radius = size / 2
@@ -152,7 +142,6 @@ def pie_chart(items, size=250, hole=0.0):
             "d": f"M {cx} {cy} L {x1} {y1} A {radius} {radius} 0 {large} 1 {x2} {y2} Z",
             "label_x": round(cx + label_at * math.cos(mid_rad), 2),
             "label_y": round(cy + label_at * math.sin(mid_rad), 2),
-            # Below about 7% the slice is too narrow to hold its own label.
             "show_label": share >= 0.07,
         })
         angle = end

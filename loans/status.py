@@ -1,28 +1,3 @@
-"""Derived application status.
-
-The loan tables have no `status` column. An application's state is implied by
-five booleans on its approval spine, so this module derives it - once, in one
-place, in two forms that cannot drift apart:
-
-  * `status_expression()` builds a SQL CASE, so filtering, sorting, grouping
-    and the dashboard totals all happen in the database.
-  * `derive_status()` does the same thing in Python, for a single object.
-
-Both are generated from STATUS_RULES below. That matters: if the list view
-computed status one way and the stat tiles another, the tiles would stop
-reconciling with the table underneath them, and the bug would look like a
-database problem rather than a code one. Generating both from one list makes
-that class of bug impossible, and `tests/test_status.py` proves the two agree
-over every combination of flags.
-
-The ORDER of STATUS_RULES is the business rule: the first flag that is set
-wins. Reading it top to bottom - an application that has been rejected is
-rejected whatever else happened to it; one that has been disbursed is done; an
-open correction request is what currently blocks an application even though an
-earlier stage may already have approved it; otherwise the furthest stage
-reached is the status.
-"""
-
 from django.db.models import Case, CharField, Value, When
 
 STATUS_RULES = [
@@ -61,12 +36,6 @@ PIPELINE_LENGTH = 4
 
 
 def status_expression():
-    """A SQL CASE deriving status, for use with .annotate(status=...).
-
-    Built fresh on each call rather than defined as a module constant: query
-    expressions carry state once attached to a queryset, so sharing one
-    instance across queries is a subtle source of bugs.
-    """
     return Case(
         *[
             When(**{field: True}, then=Value(code))
@@ -78,7 +47,6 @@ def status_expression():
 
 
 def derive_status(obj):
-    """The same derivation as `status_expression()`, for a single instance."""
     for code, field, _label in STATUS_RULES:
         if getattr(obj, field, False):
             return code
@@ -86,5 +54,4 @@ def derive_status(obj):
 
 
 def status_label(code):
-    """Human label for a status code, falling back to the code itself."""
     return STATUS_LABELS.get(code, code)

@@ -1,14 +1,3 @@
-"""Show every account officer spelling, so ALIASES can be maintained by hand.
-
-The officer column is free text. This prints what is actually in it, grouped
-the way loans/officers.py currently would, so you can see which spellings are
-already merged and which are still separate people as far as the reports are
-concerned.
-
-    python manage.py list_officers
-    python manage.py list_officers --unmapped
-"""
-
 from django.core.management.base import BaseCommand
 from django.db.models import Count, Q, Sum
 

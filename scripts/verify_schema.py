@@ -1,19 +1,3 @@
-"""Compare the models against the real loan database, column by column.
-
-Why this exists: `seed_sample_db` builds the development database FROM the
-models, so it proves the application agrees with the models - never that the
-models agree with the real table. A column renamed or dropped upstream would
-pass every local test and fail only in production.
-
-This closes that gap. Run it against the live database after any upstream
-schema change, and as part of deploying.
-
-    .venv/bin/python scripts/verify_schema.py
-
-Every statement is a SELECT against information_schema. Exit status is non-zero
-if anything differs, so it can be wired into a scheduled check.
-"""
-
 import os
 import sys
 from pathlib import Path
@@ -25,10 +9,10 @@ sys.path.insert(0, str(BASE_DIR))
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 django.setup()
 
-from django.conf import settings  # noqa: E402
-from django.db import connections  # noqa: E402
+from django.conf import settings
+from django.db import connections
 
-from loans.models import (  # noqa: E402
+from loans.models import (
     Admin,
     ApprovalAuditLog,
     CashbackRequest,
@@ -48,8 +32,6 @@ MODELS = [
     LoanComment,
 ]
 
-# Columns the models deliberately do not map, with the reason. Anything else
-# missing from a model is reported.
 INTENTIONALLY_UNMAPPED = {
     "admins": {
         "password_hash": "a reporting portal must not read password hashes",

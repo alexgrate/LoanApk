@@ -1,15 +1,3 @@
-"""Test scaffolding for unmanaged models.
-
-The loan tables belong to another system, so `managed = False` and no migration
-creates them. Tests therefore build them from the model definitions, the same
-way `seed_sample_db` does, and drop them afterwards.
-
-Rows are inserted with raw SQL on purpose: the router raises on any write
-routed to a loans model, and that protection is one of the things under test.
-Going around the ORM to arrange a fixture keeps the rule intact everywhere
-else.
-"""
-
 from datetime import datetime, timedelta, timezone
 
 from django.db import connections
@@ -35,7 +23,6 @@ MODELS = [
     LoanComment,
 ]
 
-# A 1x1 transparent PNG.
 TINY_PNG = (
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmM"
     "IQAAAABJRU5ErkJggg=="
@@ -72,15 +59,11 @@ class LoanDataTestCase(TransactionTestCase):
 
     def setUp(self):
         super().setUp()
-        # Django's flush between tests only truncates tables it manages, and
-        # every loan table is unmanaged - so without this, rows leak from one
-        # test method into the next and counts come out wrong.
         with connections["loans"].cursor() as cursor:
             for model in reversed(MODELS):
                 cursor.execute(f'TRUNCATE TABLE "{model._meta.db_table}" CASCADE')
 
     def make_loan(self, model=CashbackRequest, pk=1, **overrides):
-        """Insert one application with every NOT NULL column filled."""
         created = datetime.now(timezone.utc) - timedelta(days=30)
         row = {
             "id": pk,
@@ -128,7 +111,6 @@ class LoanDataTestCase(TransactionTestCase):
 
     def make_document(self, request_type="cashback", request_id=1, doc_id=1,
                       mime_type="image/png", data=TINY_PNG, **overrides):
-        """Insert one uploaded document against an application."""
         row = {
             "id": doc_id,
             "request_type": request_type,

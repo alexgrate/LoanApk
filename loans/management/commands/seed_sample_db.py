@@ -1,23 +1,3 @@
-"""Build a local PostgreSQL copy holding fabricated loan applications.
-
-The real database listens on loopback on the Windows server, so day-to-day
-development needs something local. This creates `dash_loans_dev` with the same
-table shapes and fills it with invented people.
-
-PostgreSQL rather than SQLite on purpose: this application depends on
-timezone-aware timestamps, `numeric` precision and CASE/WHEN ordering, and
-SQLite reproduces none of those faithfully. Developing against a different
-engine than production is how "works locally" becomes "breaks on the server".
-
-The schema is generated from the models via Django's schema editor, so it
-cannot drift from what the application expects. Note the limitation that
-follows from this: it verifies the app against the models, NOT the models
-against the real database. For that, run scripts/verify_schema.py against the
-live database, which compares the two column by column.
-
-Refuses to run unless USE_SAMPLE_DB=True, so it can never touch production.
-"""
-
 import random
 from datetime import datetime, timedelta, timezone
 
@@ -107,10 +87,8 @@ class Command(BaseCommand):
         self._create_tables()
         self._populate(options)
 
-    # --- schema ---------------------------------------------------------------
 
     def _ensure_database(self, config):
-        """CREATE DATABASE if it is not there yet, via the `postgres` database."""
         import psycopg
 
         dsn = {
@@ -143,7 +121,6 @@ class Command(BaseCommand):
                 editor.create_model(model)
         self.stdout.write(f"Created {len(MODELS)} tables from the model definitions.")
 
-    # --- data -----------------------------------------------------------------
 
     def _populate(self, options):
         connection = connections["loans"]
@@ -156,10 +133,6 @@ class Command(BaseCommand):
         }
         prefixes = {CashbackRequest: "CB", CashForCarRequest: "CFC",
                     PublicSectorRequest: "PS"}
-        # Taken from the models rather than restated, so sample data always
-        # uses the same request_type strings production does. When these were
-        # duplicated, the seeded database agreed with a wrong assumption and
-        # the verification script had nothing to catch.
         request_types = REQUEST_TYPE_BY_MODEL
 
         total_docs = total_comments = total_history = 0
@@ -214,14 +187,10 @@ class Command(BaseCommand):
                     "updated_at": now - timedelta(days=10),
                 }
             )
-        # No password_hash here: the model deliberately does not map it, so the
-        # generated development table has no such column. Nothing in a
-        # reporting portal should be able to read it, in dev or in production.
         self._insert(connection, Admin, rows)
         return [row["id"] for row in rows]
 
     def _spine(self, admins, created):
-        """A plausible position in the approval pipeline."""
         roll = random.random()
         spine = {
             "reviewed": False, "reviewed_by_id": None, "reviewed_at": None, "review_note": None,
@@ -248,7 +217,7 @@ class Command(BaseCommand):
             return note
 
         if roll < 0.28:
-            return spine  # still pending
+            return spine
         spine["review_note"] = advance("reviewed", "Documents complete.")
         if roll < 0.38:
             spine["correction_requested"] = True
@@ -446,13 +415,6 @@ class Command(BaseCommand):
         return docs, comments, history
 
     def _insert(self, connection, model, rows, extra=None):
-        """Insert rows with raw SQL.
-
-        Deliberately not the ORM: the router raises on any write routed to a
-        loans model, which is exactly the protection this application wants.
-        Seeding is the one legitimate exception, and going around the ORM keeps
-        that exception from weakening the rule.
-        """
         if not rows:
             return
         table = model._meta.db_table

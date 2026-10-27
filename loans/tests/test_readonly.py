@@ -1,11 +1,3 @@
-"""The read-only guarantee, asserted rather than documented.
-
-The application promises three independent layers: the database grant, this
-router, and `managed = False` on every model. The grant cannot be tested from
-here without a second role, but the other two can, and a test that fails loudly
-is worth more than a README paragraph that quietly stops being true.
-"""
-
 from django.db import connections
 from django.test import TestCase
 
@@ -45,7 +37,6 @@ class ReadOnlyRouterTests(TestCase):
         self.assertIs(router.allow_migrate("default", "loans"), False)
 
     def test_django_owns_no_tables_in_the_loan_database(self):
-        """Django's own tables must live in `default`, never in the loan schema."""
         self.assertIn("sqlite", connections["default"].settings_dict["ENGINE"])
         self.assertNotEqual(
             connections["loans"].settings_dict["NAME"],

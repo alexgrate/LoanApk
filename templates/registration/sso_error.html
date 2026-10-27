@@ -1,0 +1,14 @@
+{% extends "base.html" %}{% block title %}Could not sign you in{% endblock %}
+{% block content %}
+<div style="max-width:440px;margin:6vh auto">
+  <div class="card" style="padding:26px">
+    <h1 style="margin-bottom:2px">Could not sign you in</h1>
+    <p class="sub">{{ reason }}</p>
+    <p class="muted" style="font-size:14px">If you believe you should have access
+    to {{ portal_name }}, ask whoever administers it to assign you to the
+    <strong>Loan Reports Portal</strong> application in Oracle. The attempt has
+    been recorded in the audit log.</p>
+    <p style="margin-bottom:0"><a href="{% url 'login' %}">Back to sign in</a></p>
+  </div>
+</div>
+{% endblock %}

@@ -1,11 +1,3 @@
-"""Password setup and reset.
-
-This is the one unauthenticated flow in the portal that can end with somebody
-signed in, so it gets tested as carefully as document access: that links work
-once, that they expire, that the form does not reveal which addresses have
-accounts, and that it cannot be used to send unlimited mail.
-"""
-
 import re
 
 from django.contrib.auth.models import User
@@ -20,7 +12,6 @@ LINK = re.compile(r"/password-reset/(?P<uid>[^/]+)/(?P<token>[^/\"\s]+)/")
 
 
 def link_in(message):
-    """The reset URL out of a sent message, HTML part or plain."""
     bodies = [message.body] + [content for content, _type in message.alternatives]
     for body in bodies:
         found = LINK.search(body)
@@ -31,18 +22,13 @@ def link_in(message):
 
 class SignInMixin:
     def sign_in(self, username, password):
-        """Sign in through the real form.
-
-        `client.login()` calls authenticate() with no request, which
-        AxesBackend refuses - and going through the form tests the path people
-        actually use.
-        """
         response = self.client.post(
             reverse("login"), {"username": username, "password": password}
         )
         return response.status_code == 302
 
 
+@override_settings(OIDC_ENABLED=False)
 class PasswordResetFlowTests(SignInMixin, TestCase):
     databases = {"default"}
 
@@ -68,7 +54,6 @@ class PasswordResetFlowTests(SignInMixin, TestCase):
         self.assertIn("clerk@example.invalid", mail.outbox[0].to)
 
     def test_unknown_address_looks_identical_and_sends_nothing(self):
-        """The page must not reveal who has an account."""
         known = self.client.post(
             reverse("password_reset"), {"email": "clerk@example.invalid"}, follow=True
         )
@@ -78,11 +63,10 @@ class PasswordResetFlowTests(SignInMixin, TestCase):
         )
         self.assertEqual(known.status_code, unknown.status_code)
         self.assertEqual(known.redirect_chain, unknown.redirect_chain)
-        self.assertEqual(len(mail.outbox), 1)  # only the real one
+        self.assertEqual(len(mail.outbox), 1)
 
     def test_the_link_sets_a_password_and_signs_in(self):
         self.client.post(reverse("password_reset"), {"email": "clerk@example.invalid"})
-        # Django's confirm view redirects to a set-password URL first.
         response = self.client.get(link_in(mail.outbox[0]), follow=True)
         self.assertContains(response, "Choose a password")
 
@@ -104,7 +88,6 @@ class PasswordResetFlowTests(SignInMixin, TestCase):
             {"new_password1": "Sable-Harbour-71", "new_password2": "Sable-Harbour-71"},
             follow=True,
         )
-        # Same link again: the token is spent.
         self.assertContains(self.client.get(url, follow=True), "expired")
 
     def test_old_password_stops_working(self):
@@ -119,7 +102,6 @@ class PasswordResetFlowTests(SignInMixin, TestCase):
 
     @override_settings(PASSWORD_RESET_MAX_PER_HOUR=3)
     def test_requests_are_throttled(self):
-        """django-axes guards the login form, not this one."""
         for _ in range(3):
             response = self.client.post(
                 reverse("password_reset"), {"email": "clerk@example.invalid"}
@@ -143,11 +125,6 @@ class UnguessablePasswordTests(TestCase):
     databases = {"default"}
 
     def test_new_accounts_are_reachable_by_the_reset_flow(self):
-        """The reason set_unusable_password() is not used.
-
-        `PasswordResetForm` silently skips users whose password is unusable, so
-        an account created that way would never receive its own setup link.
-        """
         user = User(username="newcomer", email="newcomer@example.invalid")
         set_unguessable_password(user)
         user.save()
@@ -197,7 +174,6 @@ class AdminUserCreationTests(TestCase):
         self.assertIn("set your password", mail.outbox[0].subject.lower())
         self.assertIn("newcomer@example.invalid", mail.outbox[0].to)
 
-        # And that link genuinely works.
         response = self.client.logout() or self.client.get(
             link_in(mail.outbox[0]), follow=True
         )
@@ -217,7 +193,6 @@ class AdminUserCreationTests(TestCase):
         self.assertEqual(len(mail.outbox), 0)
 
     def test_duplicate_emails_are_refused(self):
-        """Two accounts on one address makes the reset flow ambiguous."""
         self.client.post(
             reverse("admin:auth_user_add"),
             {"username": "second", "email": "BOSS@example.invalid"},
@@ -261,8 +236,6 @@ class AdminUserCreationTests(TestCase):
 
 
 class EmailCaseTests(TestCase):
-    """Dominion@ and dominion@ must be one address, everywhere."""
-
     databases = {"default"}
 
     def setUp(self):
@@ -295,7 +268,6 @@ class EmailCaseTests(TestCase):
             self.assertEqual(len(mail.outbox), 1, f"no link sent for {typed!r}")
 
     def test_exact_lookups_work_now(self):
-        """The reason for normalising, not just matching case-insensitively."""
         User.objects.create_user("casey", email="Dominion@Dash-MFB.com", password="x")
         self.assertTrue(User.objects.filter(email="dominion@dash-mfb.com").exists())
 

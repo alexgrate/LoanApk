@@ -1,20 +1,3 @@
-"""Response headers applied to everything the application serves.
-
-Two concerns, one pass over the response:
-
-**Search engines.** The meta tag in base.html covers HTML pages, but not the
-Excel downloads or served documents - a header is the only way to mark those.
-Note this is a request that well-behaved crawlers honour, not access control.
-Every page already requires a login; what it prevents is the sign-in page
-turning up in search results.
-
-**Content Security Policy.** This application ships no JavaScript whatsoever -
-no inline handlers, no external scripts, not even a bundle - so `script-src`
-can be 'none' rather than the usual compromise. That turns a whole class of
-injection bug into a non-event: even if a template escaped something it should
-not have, the browser will not execute it.
-"""
-
 ROBOTS_DIRECTIVE = "noindex, nofollow, noarchive, nosnippet, noimageindex, notranslate"
 
 

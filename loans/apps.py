@@ -6,6 +6,4 @@ class LoansConfig(AppConfig):
     name = 'loans'
 
     def ready(self):
-        # Registers the email normaliser. Importing here rather than at module
-        # level is Django's documented way to connect signals.
-        from . import signals  # noqa: F401
+        from . import signals

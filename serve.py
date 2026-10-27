@@ -1,16 +1,3 @@
-"""Production server.
-
-`runserver` is a development server and should not be used to serve real
-traffic. This runs the app under Waitress, which is pure Python and works well
-on Windows (gunicorn does not run there).
-
-    py serve.py
-
-Host, port and thread count come from .env so the port can be changed without
-touching code - the server already runs other applications on 8000-8002 and
-8500.
-"""
-
 import os
 import sys
 from pathlib import Path
@@ -27,14 +14,7 @@ if not env_file.exists():
     )
 load_dotenv(env_file)
 
-# Fail loudly on a half-configured deployment. Under a Windows service there
-# is no console to watch, so this has to end up in the log rather than in a
-# server that starts and then 500s on the first request.
-#
-# On sample data the loan credentials are irrelevant, and requiring them would
-# mean this file - the actual production entrypoint - could never be exercised
-# outside the server. The loud WARNING below still makes fabricated data
-# impossible to mistake for real.
+
 if os.getenv("USE_SAMPLE_DB", "False").lower() == "true":
     required_settings = ("DJANGO_SECRET_KEY",)
 else:
@@ -44,10 +24,6 @@ for required in required_settings:
     if not os.getenv(required):
         sys.exit(f"{required} is not set in {env_file}. Refusing to start.")
 
-# Without Graph credentials the email backend falls back to the console, which
-# in production means password setup and reset links are written to the service
-# log and never delivered - a failure nobody notices until somebody is locked
-# out. Better to refuse to start and say so.
 if os.getenv("DJANGO_DEBUG", "False").lower() != "true":
     missing_mail = [
         name
@@ -63,9 +39,9 @@ if os.getenv("DJANGO_DEBUG", "False").lower() != "true":
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 
-from waitress import serve  # noqa: E402
+from waitress import serve
 
-from config.wsgi import application  # noqa: E402
+from config.wsgi import application
 
 host = os.getenv("DJANGO_BIND_HOST", "0.0.0.0")
 port = int(os.getenv("DJANGO_PORT", "8600"))
@@ -73,7 +49,7 @@ threads = int(os.getenv("DJANGO_THREADS", "8"))
 
 print(f"Loan Reports portal -> http://{host}:{port}  ({threads} threads)", flush=True)
 
-from django.conf import settings  # noqa: E402
+from django.conf import settings
 
 db = settings.DATABASES["loans"]
 print(f"Settings: DEBUG={settings.DEBUG}  hosts={settings.ALLOWED_HOSTS}", flush=True)

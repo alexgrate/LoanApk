@@ -1,16 +1,3 @@
-"""The derivation in Python and the derivation in SQL must agree.
-
-This is the most important test in the suite. Status is displayed from a
-database annotation but computed in Python wherever a single object is in hand,
-and the dashboard totals are aggregated in SQL. If the two derivations ever
-disagree, the stat tiles stop reconciling with the rows beneath them and the
-discrepancy looks like a database fault rather than a code one.
-
-Both come from STATUS_RULES in loans/status.py, so they should agree by
-construction. This proves it over every combination of the six flags rather
-than trusting the construction.
-"""
-
 from itertools import product
 
 from loans.models import CashbackRequest
@@ -37,10 +24,7 @@ class StatusDerivationTests(LoanDataTestCase):
                 )
 
     def test_precedence_follows_status_rules_order(self):
-        """The first flag set wins, top to bottom of STATUS_RULES."""
         for position, (code, field, _label) in enumerate(STATUS_RULES):
-            # Set this flag and every lower-precedence one; the higher-
-            # precedence flags stay false, so this code should win.
             flags = {f: False for f in SPINE_FLAGS}
             for _c, lower_field, _l in STATUS_RULES[position:]:
                 flags[lower_field] = True

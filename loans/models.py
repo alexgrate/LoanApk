@@ -1,18 +1,3 @@
-"""Read-only mapping onto the existing loan application tables.
-
-`managed = False` on every model means Django never creates, alters or drops
-these tables - they belong to the loan origination system, and this portal only
-reads them.
-
-Three loan products share one approval workflow. The shared columns live on
-`LoanRequest`; each product adds its own. The products are NOT cleanly
-unionable - `cashback_request` calls the family name `surname` where the others
-use `last_name`, `public_sector_request` has no `middle_name` at all, and
-`cash_for_car_request` carries both `gender` and `sex` - so shared behaviour is
-expressed through the abstract base and per-model constants rather than by
-pretending the schemas match.
-"""
-
 from django.db import models
 
 from .status import derive_status, status_expression, status_label
@@ -23,36 +8,17 @@ MONEY = {"max_digits": 20, "decimal_places": 4}
 
 class LoanRequestQuerySet(models.QuerySet):
     def visible_to(self, user):
-        """Rows this user may see.
-
-        Every list, detail, export and document lookup goes through here, so
-        row visibility has exactly one definition. Today any authenticated
-        user sees everything; per-user rules are expected later, and this is
-        the single place they will be added.
-
-        Deny by default: an unauthenticated or missing user gets nothing, so a
-        half-configured account shows an empty page rather than the whole book.
-        """
         if user is None or not user.is_authenticated:
             return self.none()
         return self
 
 
 class LoanRequestManager(models.Manager.from_queryset(LoanRequestQuerySet)):
-    """Annotates the derived status onto every queryset.
-
-    Doing it here rather than per view means filtering, ordering, aggregation
-    and export all see the same `status` value, computed by the database from
-    the same expression - see loans/status.py.
-    """
-
     def get_queryset(self):
         return super().get_queryset().annotate(status=status_expression())
 
 
 class LoanRequest(models.Model):
-    """Columns and behaviour shared by all three loan products."""
-
     LAST_NAME_FIELD = "last_name"
     PRODUCT_LABEL = "Loan request"
     PRODUCT_CODE = "loan"
@@ -157,7 +123,6 @@ class LoanRequest(models.Model):
 
     @property
     def last_name(self):
-        """Family name, whichever column this product stores it in."""
         return getattr(self, self.LAST_NAME_FIELD, None)
 
     @property
@@ -167,11 +132,6 @@ class LoanRequest(models.Model):
 
     @property
     def derived_status(self):
-        """Status computed in Python.
-
-        `self.status` is normally present as a database annotation; this is the
-        same value derived locally, and the two are proven equal by the tests.
-        """
         return derive_status(self)
 
     @property
@@ -354,13 +314,6 @@ REQUEST_TYPE_BY_MODEL = {
 
 
 class Admin(models.Model):
-    """Staff of the loan origination system.
-
-    Referenced by every `*_by_id` column. This portal does not authenticate
-    against this table - it has its own Django users - but it reads it to turn
-    an actor id into a name.
-    """
-
     id = models.BigAutoField(primary_key=True)
     full_name = models.CharField(max_length=120)
     email = models.CharField(max_length=160)
@@ -391,20 +344,10 @@ class Admin(models.Model):
 
 
 class RequestDocumentManager(models.Manager):
-    """Defers the document body on every query.
-
-    `request_document.data` holds the base64-encoded file inline, across 5,000+
-    rows. A query that selects it by accident - a bare `.all()` feeding a list
-    view - would pull every uploaded ID scan into memory. Deferring by default
-    means the expensive column has to be asked for explicitly, via
-    `RequestDocument.objects.with_content(...)`.
-    """
-
     def get_queryset(self):
         return super().get_queryset().defer("data")
 
     def with_content(self, **filters):
-        """The one path that loads document bodies. Use for a single file."""
         return super().get_queryset().filter(**filters)
 
 

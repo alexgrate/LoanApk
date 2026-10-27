@@ -1,18 +1,3 @@
-"""The real `dash_loans` schema, as read from information_schema on 2026-09-08.
-
-Transcribed from the production database so the models can be checked against
-it without a network route. `seed_sample_db` builds the development database
-FROM the models, so it can never catch a model that has drifted from the real
-table - this snapshot is what closes that gap offline. `scripts/verify_schema.py`
-does the same check live, and is the authority; this is the version that runs in
-CI and on a laptop with no tunnel.
-
-Refresh it after any upstream schema change:
-
-    SELECT table_name, column_name FROM information_schema.columns
-    WHERE table_schema = 'public' ORDER BY table_name, ordinal_position;
-"""
-
 MAPPED_TABLES = {
     "cashback_request": [
         "id", "reference_no", "title", "first_name", "surname", "middle_name",

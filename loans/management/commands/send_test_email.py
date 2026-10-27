@@ -1,13 +1,3 @@
-"""Prove the Graph credentials work, without creating a user to do it.
-
-    python manage.py send_test_email you@dash-mfb.com
-
-Reports which stage failed, because the three failure modes need different
-fixes: a bad tenant or secret fails at the token step, a missing Mail.Send
-permission or an application access policy fails at the send step, and a
-console backend means the credentials are simply not configured.
-"""
-
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.core.management.base import BaseCommand, CommandError
