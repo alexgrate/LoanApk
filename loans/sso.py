@@ -43,6 +43,8 @@ def _request(url, data=None, headers=None, timeout=20):
         raise SSOError(f"could not reach {host}: {exc.reason}") from exc
     except json.JSONDecodeError as exc:
         raise SSOError(f"{urllib.parse.urlparse(url).path} returned no JSON") from exc
+    except (OSError, ValueError) as exc:
+        raise SSOError(f"could not use {url}: {exc!r}") from exc
 
 
 def discover():

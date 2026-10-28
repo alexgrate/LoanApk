@@ -112,6 +112,12 @@ class StartingTests(SSOTestCase):
     def test_every_attempt_gets_a_fresh_state(self):
         self.assertNotEqual(self.start(), self.start())
 
+    @override_settings(OIDC_ISSUER="https://idcs-abc....identity.oraclecloud.com")
+    def test_a_malformed_issuer_shows_a_page_not_a_crash(self):
+        sso._request = self._real_request
+        response = self.client.get(reverse("sso_login"))
+        self.assertEqual(response.status_code, 503)
+
 
 class ReturningTests(SSOTestCase):
     def test_a_valid_return_creates_the_account_and_signs_in(self):

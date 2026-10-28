@@ -233,5 +233,7 @@ LOGGING = {
 
         "axes": {"handlers": ["audit_file", "console"], "level": "WARNING",
                  "propagate": False},
+        "django.request": {"handlers": ["console"], "level": "ERROR",
+                           "propagate": False},
     },
 }
